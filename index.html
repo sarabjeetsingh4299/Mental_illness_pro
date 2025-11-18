@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Student Mental Wellness Tracker — Advanced (Reminders & Hotlines)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#f7fbff; --card:#fff; --text:#0f172a; --muted:#6b7280; --brand:#2b6ef6;
+    }
+    [data-theme="dark"]{
+      --bg:#071026; --card:#071426; --text:#e6eef8; --muted:#9aa6b2; --brand:#3b82f6;
+    }
+    html,body{height:100%;}
+    body{
+      font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background:linear-gradient(180deg,var(--bg), #e9f0ff 40%); color:var(--text); padding:18px; transition: background .25s,color .25s;
+    }
+    h4,div{ color:var(--text) }
+    .app{max-width:1200px;margin:0 auto}
+    .card{border-radius:12px;box-shadow:0 10px 30px rgba(17,24,39,0.06);background:var(--card)}
+    .small-muted{color:var(--muted)}
+    .mood-btn{font-size:20px;padding:.45rem .6rem;border-radius:8px}
+    .mood-btn.active{box-shadow:0 6px 18px rgba(17,24,39,.06);transform:translateY(-2px)}
+    .param{min-width:48px}
+    .toast-pos{position:fixed;right:16px;bottom:16px;z-index:1200}
+    .badge-xl{font-size:1rem;padding:.5rem .7rem}
+    @media (max-width:768px){ .map-wrap{height:220px} }
+    .rem-row .form-control{height:38px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card p-4 mb-3">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <h4 class="mb-0">Student Mental Wellness Tracker — Advanced</h4>
+          <div class="small-muted">Reminders, emergency hotlines, dark mode, charts and local persistence.</div>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center">
+          <div class="text-end small-muted me-2">
+            <div id="todayLabel"></div>
+            <div id="localTime" class="small-muted"></div>
+          </div>
+          <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Toggle theme">
+            <i id="themeIcon" class="bi bi-moon"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <!-- LEFT: inputs -->
+        <div class="col-lg-5">
+          <div class="mb-2"><strong>Daily Snapshot</strong> <span class="small-muted">(select today's measures)</span></div>
+
+          <div class="mb-2">
+            <label class="form-label">Mood</label>
+            <div id="moodRow" class="d-flex gap-2 flex-wrap" role="radiogroup" aria-label="Mood options"></div>
+          </div>
+
+          <div class="row gx-2">
+            <div class="col-6 mb-2">
+              <label class="form-label">Anxiety (0–10)</label>
+              <input id="anxiety" type="range" min="0" max="10" step="1" class="form-range">
+              <div class="small-muted">Value: <span id="anxietyVal">5</span></div>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Stress (0–10)</label>
+              <input id="stress" type="range" min="0" max="10" step="1" class="form-range">
+              <div class="small-muted">Value: <span id="stressVal">5</span></div>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Focus (0–10)</label>
+              <input id="focus" type="range" min="0" max="10" step="1" class="form-range">
+              <div class="small-muted">Value: <span id="focusVal">5</span></div>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Productivity (0–10)</label>
+              <input id="prodRange" type="range" min="0" max="10" step="1" class="form-range">
+              <div class="small-muted">Value: <span id="prodVal">5</span></div>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Sleep (hours)</label>
+              <input id="sleep" type="number" min="0" max="24" step="0.5" class="form-control param" value="7">
+              <div class="small-muted">Recommended: 6–9 hrs</div>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Energy (0–10)</label>
+              <input id="energy" type="range" min="0" max="10" step="1" class="form-range">
+              <div class="small-muted">Value: <span id="energyVal">5</span></div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Journal / Notes</label>
+            <input id="noteTitle" class="form-control mb-2" placeholder="Entry title (optional)" maxlength="80"/>
+            <textarea id="noteBody" class="form-control" rows="5" maxlength="2000" placeholder="Write about your feelings, triggers, wins..."></textarea>
+            <div class="small-muted mt-1">Tip: 1–2 lines about what went well and what to improve.</div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button id="saveBtn" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save</button>
+            <button id="clearBtn" class="btn btn-outline-danger">Clear Today</button>
+            <button id="exportBtn" class="btn btn-outline-secondary ms-auto"><i class="bi bi-download me-1"></i>Export</button>
+          </div>
+
+          <hr class="my-3"/>
+
+          <div><strong>Wellness Summary</strong></div>
+          <div class="mt-2 d-flex gap-2 align-items-center">
+            <div class="badge bg-light border badge-xl" id="wellnessBadge">Score: -</div>
+            <div class="small-muted" id="wellnessText">—</div>
+          </div>
+
+          <hr class="my-3"/>
+
+          <div class="d-flex justify-content-between align-items-center">
+            <div><strong>Emergency</strong> <small class="small-muted">(hotlines & quick call)</small></div>
+            <div>
+              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#emergencyModal"><i class="bi bi-exclamation-triangle-fill"></i> Hotlines</button>
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <strong>Emergency Contacts</strong> <small class="small-muted"> (tap to call)</small>
+            <div id="contactsWrap" class="mt-2 mb-2 d-flex gap-2 flex-wrap"></div>
+
+            <div class="d-flex gap-2 mt-2">
+              <input id="contactName" class="form-control form-control-sm" placeholder="Name">
+              <input id="contactNumber" class="form-control form-control-sm" placeholder="Phone (digits)">
+              <button id="addContactBtn" class="btn btn-sm btn-primary">Add</button>
+            </div>
+            <div class="small-muted mt-1">Saved locally; use these for quick calls.</div>
+          </div>
+
+          <hr class="my-3"/>
+
+          <div class="d-flex gap-2">
+            <button id="openMapsBtn" class="btn btn-outline-primary ms-auto"><i class="bi bi-geo-alt me-1"></i>Open in Google Maps</button>
+          </div>
+
+        </div>
+
+        <!-- RIGHT -->
+        <div class="col-lg-7">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <strong>Mood — 7 days</strong>
+                  <small class="small-muted">last week</small>
+                </div>
+                <canvas id="moodChart" class="mb-2"></canvas>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <strong>Composite metrics</strong>
+                </div>
+                <canvas id="compChart" class="mb-2"></canvas>
+                <div class="small-muted">Breakdown: Wellness score components.</div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <strong>Recent Entries</strong>
+                  <small class="small-muted">Saved locally</small>
+                </div>
+                <div id="entriesList"></div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <strong>Reminders</strong>
+                  <small class="small-muted">Desktop notifications (permission required)</small>
+                </div>
+                <div class="rem-row d-flex gap-2 align-items-center mb-2">
+                  <input id="remMsg" class="form-control" placeholder="Reminder message">
+                  <input id="remTime" class="form-control" type="datetime-local">
+                  <button id="addRemBtn" class="btn btn-primary">Add</button>
+                </div>
+                <div id="remList" class="small-muted"></div>
+                <div class="small-muted mt-2">When a reminder is due, the app will show a desktop notification if allowed, otherwise an in-app toast.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="text-center small-muted">Local demo — reminders are local to your browser.</div>
+  </div>
+
+  <!-- Emergency Modal -->
+  <div class="modal fade" id="emergencyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">Emergency & Hotlines</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong>If you are in immediate danger, call your local emergency number right away.</strong></p>
+
+          <div class="mb-2">
+            <label class="form-label">Choose country</label>
+            <select id="hotlineCountry" class="form-select">
+              <option value="auto">Detect my country (if available)</option>
+              <option value="IN">India</option>
+              <option value="US">United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="AU">Australia</option>
+              <option value="OTHER">Other / International</option>
+            </select>
+          </div>
+
+          <div id="hotlineInfo" class="mb-3"></div>
+
+          <div class="d-flex gap-2">
+            <button id="callHotlineBtn" class="btn btn-danger"><i class="bi bi-telephone"></i> Call</button>
+            <button id="copyHotlineBtn" class="btn btn-outline-secondary"><i class="bi bi-clipboard"></i> Copy Number</button>
+          </div>
+
+          <div class="small-muted mt-3">If hotline not available, call <strong>112</strong> (emergency) or contact a trusted person immediately.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toastPos" class="toast-pos"></div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* Robust replacement script — paste into page replacing your old <script> block.
+   Defensive: checks for required elements, graceful fallbacks, logs errors.
+*/
+(function(){
+  'use strict';
+
+  // small safe toast fallback if Bootstrap Toast not available yet
+  function toast(msg, cls='secondary', timeout=1800){
+    try {
+      const pos = document.getElementById('toastPos') || (function(){ const d=document.createElement('div'); d.id='toastPos'; d.style.position='fixed'; d.style.right='16px'; d.style.bottom='16px'; d.style.zIndex=1200; document.body.appendChild(d); return d; })();
+      const el = document.createElement('div');
+      el.className = `toast align-items-center text-bg-${cls} border-0 mb-2`;
+      el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+      pos.appendChild(el);
+      const bsToast = bootstrap?.Toast ? new bootstrap.Toast(el,{delay: timeout}) : null;
+      if(bsToast){ bsToast.show(); el.addEventListener('hidden.bs.toast', ()=> el.remove()); }
+      else { setTimeout(()=> el.remove(), timeout); }
+    } catch (e) { console.warn('toast error', e); }
+  }
+
+  // DOM ready
+  function ready(fn){
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  ready(() => {
+    try {
+      // sanity: log environment
+      console.log('Wellness app (robust script) initialising...');
+
+      // required IDs used in the UI
+      const ids = ['todayLabel','localTime','themeToggle','themeIcon','moodRow','moodChart','compChart',
+        'prodRange','anxiety','stress','focus','energy','noteTitle','noteBody','saveBtn','clearBtn','exportBtn',
+        'entriesList','contactsWrap','addContactBtn','contactName','contactNumber','openMapsBtn',
+        'hotlineCountry','hotlineInfo','callHotlineBtn','copyHotlineBtn',
+        'remMsg','remTime','addRemBtn','remList'
+      ];
+      const missing = ids.filter(id => !document.getElementById(id));
+      if(missing.length) {
+        console.warn('Some expected elements are missing from DOM — app will still try to run. Missing:', missing);
+        toast('Some UI elements missing — check console.', 'warning', 3500);
+      }
+
+      // small helpers and state
+      const STORE_KEY = 'WELLNESS_ADV_V2';
+      const CONTACT_KEY = 'CONTACTS_ADV_V2';
+      const REM_KEY = 'WELLNESS_REMINDERS_V1';
+      const THEME_KEY = 'THEME_ADV_V2';
+
+      const moods = [
+        {id:0, emoji:'😭', label:'Very low'},
+        {id:1, emoji:'😕', label:'Low'},
+        {id:2, emoji:'😐', label:'Okay'},
+        {id:3, emoji:'🙂', label:'Good'},
+        {id:4, emoji:'😄', label:'Great'}
+      ];
+
+      // safe getter
+      const $ = id => document.getElementById(id);
+      const todayLabel = $('todayLabel'), localTime = $('localTime'), themeToggle = $('themeToggle'), themeIcon = $('themeIcon');
+      const moodRow = $('moodRow'), prodRange = $('prodRange'), prodVal = $('prodVal');
+      const anxiety = $('anxiety'), anxietyVal = $('anxietyVal'), stress = $('stress'), stressVal = $('stressVal');
+      const focus = $('focus'), focusVal = $('focusVal'), energy = $('energy'), energyVal = $('energyVal');
+      const noteTitle = $('noteTitle'), noteBody = $('noteBody'), saveBtn = $('saveBtn'), clearBtn = $('clearBtn'), exportBtn = $('exportBtn');
+      const entriesList = $('entriesList'), contactsWrap = $('contactsWrap'), addContactBtn = $('addContactBtn');
+      const contactName = $('contactName'), contactNumber = $('contactNumber'), openMapsBtn = $('openMapsBtn');
+      const hotlineCountry = $('hotlineCountry'), hotlineInfo = $('hotlineInfo'), callHotlineBtn = $('callHotlineBtn'), copyHotlineBtn = $('copyHotlineBtn');
+      const remMsg = $('remMsg'), remTime = $('remTime'), addRemBtn = $('addRemBtn'), remList = $('remList');
+
+      // charts - guard Chart creation in try/catch
+      let moodChart = null, compChart = null;
+      function createCharts(){
+        try {
+          if(!$('moodChart')) return;
+          const mctx = document.getElementById('moodChart').getContext('2d');
+          moodChart = new Chart(mctx, {
+            type:'line',
+            data:{ labels:[], datasets:[{ label:'Mood', data:[], borderColor:'#2b6ef6', backgroundColor:'rgba(43,110,246,0.12)', tension:0.3, fill:true, pointRadius:5 }]},
+            options:{ responsive:true, scales:{ y:{ min:0, max:4, ticks:{ stepSize:1 } } }, plugins:{ legend:{ display:false } } }
+          });
+        } catch(e){
+          console.warn('createCharts(mood) failed', e);
+        }
+        try {
+          if(!$('compChart')) return;
+          const cctx = document.getElementById('compChart').getContext('2d');
+          compChart = new Chart(cctx, {
+            type:'doughnut',
+            data:{ labels:['Stress+Anxiety','Sleep','Focus+Energy','Productivity'], datasets:[{ data:[1,1,1,1], backgroundColor:['#ef4444','#6b7280','#f59e0b','#3b82f6'] }]},
+            options:{ responsive:true, plugins:{ legend:{ position:'bottom' } } }
+          });
+        } catch(e){
+          console.warn('createCharts(comp) failed', e);
+        }
+      }
+
+      // minimal storage helpers
+      function loadJSON(key, fallback){ try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e){ console.warn('loadJSON err', key, e); return fallback; } }
+      function saveJSON(key, value){ try { localStorage.setItem(key, JSON.stringify(value)); } catch(e){ console.warn('saveJSON err', key, e); } }
+
+      // small escape helper
+      function esc(s){ if(!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+
+      // state
+      let store = loadJSON(STORE_KEY, {});
+      let contacts = loadJSON(CONTACT_KEY, []);
+      let reminders = loadJSON(REM_KEY, []);
+
+      // theme
+      function applyTheme(t){
+        try {
+          if(t === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); if(themeIcon) themeIcon.className='bi bi-sun'; if(themeToggle) themeToggle.title='Switch to light'; }
+          else { document.documentElement.removeAttribute('data-theme'); if(themeIcon) themeIcon.className='bi bi-moon'; if(themeToggle) themeToggle.title='Switch to dark'; }
+          saveJSON(THEME_KEY, t);
+        } catch(e){ console.warn('applyTheme error', e); }
+      }
+      (function(){ const saved = localStorage.getItem(THEME_KEY); applyTheme(saved === 'dark' ? 'dark' : 'light'); })();
+      if(themeToggle) themeToggle.addEventListener('click', ()=> applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+
+      // basic UI init
+      if(todayLabel) todayLabel.textContent = new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+      if(localTime) { localTime.textContent = new Date().toLocaleTimeString(); setInterval(()=> localTime.textContent = new Date().toLocaleTimeString(), 1000); }
+
+      // render mood buttons
+      if(moodRow){
+        moodRow.innerHTML = '';
+        moods.forEach(m=>{
+          const btn = document.createElement('button');
+          btn.type='button'; btn.className='btn btn-light mood-btn'; btn.dataset.mood = m.id;
+          btn.innerHTML = `<div style="font-size:20px">${m.emoji}</div><div class="small-muted" style="font-size:12px">${m.label}</div>`;
+          btn.addEventListener('click', ()=> {
+            moodRow.querySelectorAll('.mood-btn')?.forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+          });
+          moodRow.appendChild(btn);
+        });
+      }
+
+      // chart creation
+      createCharts();
+
+      // helper: selected mood
+      function getSelectedMood(){ const b = document.querySelector('#moodRow .mood-btn.active'); return b ? Number(b.dataset.mood) : null; }
+
+      // save / load today logic (robust, same as before)
+      function todayKey(){ return new Date().toISOString().slice(0,10); }
+      function shortDate(iso){ const d=new Date(iso); return (d.getMonth()+1)+'/'+d.getDate(); }
+
+      function computeWellness(entry){
+        try {
+          const moodS = entry.mood/4, prodS = entry.prod/10, focusS = entry.focus/10, energyS = entry.energy/10;
+          const sleepS = Math.max(0, 1 - Math.abs(7 - (Number(entry.sleep)||7))/7);
+          const negative = (entry.stress + entry.anxiety) / 20;
+          const weighted = (moodS*0.22 + prodS*0.22 + focusS*0.18 + energyS*0.18 + sleepS*0.2);
+          const final = Math.max(0, Math.round((weighted * (1 - negative)) * 100));
+          return { score: final, breakdown:{moodS,prodS,focusS,energyS,sleepS,negative} };
+        } catch(e){ console.warn('computeWellness failed', e); return { score: 0, breakdown:{} }; }
+      }
+
+      // update UI for an entry (safe)
+      function updateWellnessUI(entry){
+        if(!entry) return;
+        const w = computeWellness(entry);
+        const wb = $('wellnessBadge'); const wt = $('wellnessText');
+        if(wb) { wb.textContent = 'Score: ' + w.score; wb.className = w.score >= 80 ? 'badge bg-success badge-xl' : w.score >= 60 ? 'badge bg-warning text-dark badge-xl' : 'badge bg-danger badge-xl'; }
+        if(wt) wt.textContent = w.score >= 80 ? 'Feeling good — keep it up.' : w.score >= 60 ? 'Reasonable — some areas to improve.' : 'Consider reaching out — take a short break.';
+        if(compChart) {
+          try {
+            compChart.data.datasets[0].data = [
+              Math.round(w.breakdown.negative * 100),
+              Math.round((w.breakdown.sleepS||0) * 100),
+              Math.round(((w.breakdown.focusS||0) + (w.breakdown.energyS||0))/2 * 100),
+              Math.round((w.breakdown.prodS||0) * 100)
+            ];
+            compChart.update();
+          } catch(e){ console.warn('compChart update failed', e); }
+        }
+      }
+
+      // load today's entry into form
+      function loadToday(){
+        const key = todayKey(); const e = store[key];
+        if(e){
+          document.querySelectorAll('#moodRow .mood-btn')?.forEach(b=> b.classList.toggle('active', Number(b.dataset.mood) === e.mood));
+          if(prodRange) prodRange.value = e.prod; if(anxiety) anxiety.value = e.anxiety; if(stress) stress.value = e.stress;
+          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if(sleep) sleep.value = e.sleep || 7;
+          if(noteTitle) noteTitle.value = e.title || ''; if(noteBody) noteBody.value = e.note || '';
+          updateWellnessUI(e);
+        } else {
+          // defaults
+          document.querySelectorAll('#moodRow .mood-btn')?.forEach(b=> b.classList.remove('active'));
+          if(prodRange) prodRange.value = 5; if(anxiety) anxiety.value = 5; if(stress) stress.value = 5;
+          if(focus) focus.value = 5; if(energy) energy.value = 5; if(sleep) sleep.value = 7;
+          if(noteTitle) noteTitle.value=''; if(noteBody) noteBody.value='';
+          updateWellnessUI(null);
+        }
+      }
+
+      // entries rendering
+      function renderEntries(){
+        if(!entriesList) return;
+        entriesList.innerHTML = '';
+        const keys = Object.keys(store).sort((a,b)=> b.localeCompare(a));
+        if(keys.length === 0){ entriesList.innerHTML = '<div class="small-muted">No entries yet.</div>'; return; }
+        keys.forEach(k=>{
+          const e = store[k];
+          const el = document.createElement('div'); el.className='mb-2 p-2 border rounded';
+          el.innerHTML = `<div class="d-flex justify-content-between align-items-start">
+              <div><div><strong>${esc(e.title||moods[e.mood].label)}</strong> <span class="small-muted">• ${shortDate(e.date)}</span></div>
+              <div class="small-muted">${e.prod}/10 • Focus ${e.focus} • Energy ${e.energy} • Sleep ${e.sleep}h</div></div>
+              <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-secondary load-entry" data-key="${k}">Load</button>
+                <button class="btn btn-sm btn-outline-danger delete-entry" data-key="${k}">Delete</button>
+              </div></div>
+              <div class="mt-2">${esc(e.note).replace(/\n/g,'<br>')}</div>`;
+          entriesList.appendChild(el);
+        });
+        entriesList.querySelectorAll('.load-entry')?.forEach(b=> b.addEventListener('click', (ev)=>{
+          const key = ev.currentTarget.dataset.key; const e = store[key]; if(!e) return;
+          document.querySelectorAll('#moodRow .mood-btn')?.forEach(btn=> btn.classList.toggle('active', Number(btn.dataset.mood) === e.mood));
+          if(prodRange) prodRange.value = e.prod; if(anxiety) anxiety.value = e.anxiety; if(stress) stress.value = e.stress;
+          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if(sleep) sleep.value = e.sleep;
+          if(noteTitle) noteTitle.value = e.title; if(noteBody) noteBody.value = e.note;
+          toast('Loaded into form (not saved)', 'secondary');
+        }));
+        entriesList.querySelectorAll('.delete-entry')?.forEach(b=> b.addEventListener('click', (ev)=>{
+          const key = ev.currentTarget.dataset.key; if(!confirm('Delete this entry?')) return;
+          delete store[key]; saveJSON(STORE_KEY, store); renderEntries(); renderCharts(); toast('Deleted','success');
+        }));
+      }
+
+      // charts render
+      function renderCharts(){
+        try {
+          if(!moodChart) return;
+          const labels = []; const moodData = [];
+          for(let i=6;i>=0;i--){
+            const d = new Date(); d.setDate(d.getDate()-i); const key=d.toISOString().slice(0,10);
+            labels.push(shortDate(key)); const e = store[key]; moodData.push(e ? e.mood : null);
+          }
+          moodChart.data.labels = labels; moodChart.data.datasets[0].data = moodData; moodChart.update();
+        } catch(e){ console.warn('renderCharts error', e); }
+      }
+
+      // save today
+      function saveToday(){
+        try {
+          const key = todayKey();
+          const mood = getSelectedMood();
+          if(mood === null){ toast('Select mood first','warning'); return; }
+          const entry = {
+            date: key,
+            mood: mood,
+            prod: Number(prodRange?.value) || 0,
+            anxiety: Number(anxiety?.value) || 0,
+            stress: Number(stress?.value) || 0,
+            focus: Number(focus?.value) || 0,
+            energy: Number(energy?.value) || 0,
+            sleep: Number(sleep?.value) || 0,
+            title: noteTitle?.value.trim() || '',
+            note: noteBody?.value.trim() || '',
+            savedAt: new Date().toISOString()
+          };
+          store[key] = entry; saveJSON(STORE_KEY, store);
+          updateWellnessUI(entry); renderCharts(); renderEntries(); toast('Saved','success');
+        } catch(e){ console.error('saveToday err', e); toast('Save failed','warning'); }
+      }
+
+      // clear today
+      function clearToday(){
+        const k = todayKey();
+        if(!store[k]) { toast('Nothing to clear','warning'); return; }
+        if(!confirm("Clear today's entry?")) return;
+        delete store[k]; saveJSON(STORE_KEY, store); loadToday(); renderCharts(); renderEntries(); toast('Cleared','success');
+      }
+
+      // export today
+      function exportToday(){
+        const k = todayKey(), e = store[k];
+        if(!e){ toast('No entry to export','warning'); return; }
+        const text = `Date: ${e.date}\nScore: ${computeWellness(e).score}\nMood: ${moods[e.mood].label}\nProductivity: ${e.prod}\nFocus: ${e.focus}\nEnergy: ${e.energy}\nSleep: ${e.sleep}\nStress: ${e.stress}\nAnxiety: ${e.anxiety}\n\nTitle: ${e.title}\n\nNotes:\n${e.note}`;
+        const blob = new Blob([text], { type:'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `wellness-${k}.txt`; a.click(); URL.revokeObjectURL(a.href);
+        toast('Exported','success');
+      }
+
+      // contacts
+      function renderContacts(){
+        if(!contactsWrap) return;
+        contactsWrap.innerHTML = '';
+        if(contacts.length === 0) contactsWrap.innerHTML = '<div class="small-muted">No emergency contacts.</div>';
+        contacts.forEach(c=>{
+          const chip = document.createElement('div'); chip.className='d-flex align-items-center gap-2';
+          chip.innerHTML = `<div><strong>${esc(c.name)}</strong><div class="small-muted" style="font-size:12px">${c.number}</div></div>
+            <div class="ms-2 d-flex gap-1"><a class="btn btn-sm btn-outline-success" href="tel:${c.number}"><i class="bi bi-telephone"></i></a>
+            <button class="btn btn-sm btn-outline-danger remove-contact" data-id="${c.id}"><i class="bi bi-trash"></i></button></div>`;
+          contactsWrap.appendChild(chip);
+        });
+        contactsWrap.querySelectorAll('.remove-contact')?.forEach(b=> b.addEventListener('click', (ev)=>{
+          const id = ev.currentTarget.dataset.id; if(!confirm('Remove contact?')) return;
+          contacts = contacts.filter(x=> x.id !== id); saveJSON(CONTACT_KEY, contacts); renderContacts(); toast('Removed','success');
+        }));
+      }
+
+      // add contact
+      if(addContactBtn) addContactBtn.addEventListener('click', ()=>{
+        const name = (contactName?.value||'').trim(); const num = (contactNumber?.value||'').trim();
+        if(!name || !/^\d{6,15}$/.test(num)){ toast('Enter name and valid number','warning'); return; }
+        contacts.push({ id: 'c_' + Date.now(), name, number: num }); contactName.value=''; contactNumber.value='';
+        saveJSON(CONTACT_KEY, contacts); renderContacts(); toast('Saved','success');
+      });
+
+      // HOTLINES: simple dataset
+      const HOTLINES = { 'IN': {country:'India', hotline:'9152987821', notes:'National Mental Health Helpline'},
+                         'US': {country:'United States', hotline:'988', notes:'988 Suicide & Crisis Lifeline'},
+                         'GB': {country:'United Kingdom', hotline:'116123', notes:'Samaritans'},
+                         'AU': {country:'Australia', hotline:'13 11 14', notes:'Lifeline Australia'},
+                         'OTHER': {country:'International', hotline:'112', notes:'Local emergency / 112'} };
+
+      function getHotlineForSelected(){
+        const sel = hotlineCountry?.value;
+        if(!sel || sel === 'auto') return HOTLINES.OTHER;
+        return HOTLINES[sel] || HOTLINES.OTHER;
+      }
+      function renderHotlineInfo(){
+        try {
+          if(!hotlineInfo) return;
+          const info = getHotlineForSelected();
+          hotlineInfo.innerHTML = `<div><strong>${info.country}</strong></div>
+            <div class="small-muted">${info.notes || 'Emergency/mental health support'}</div>
+            <div class="mt-2"><strong>Hotline:</strong> <span style="font-size:1.1rem">${info.hotline}</span></div>`;
+          if(callHotlineBtn) callHotlineBtn.textContent = 'Call ' + info.hotline;
+          if(copyHotlineBtn) copyHotlineBtn.textContent = 'Copy ' + info.hotline;
+        } catch(e){ console.warn('renderHotlineInfo', e); }
+      }
+      if(hotlineCountry) hotlineCountry.addEventListener('change', renderHotlineInfo);
+      if(callHotlineBtn) callHotlineBtn.addEventListener('click', ()=> { const info = getHotlineForSelected(); if(!info) return toast('Hotline not available','warning'); window.location.href = 'tel:' + info.hotline.replace(/\s/g,'').replace(/\+/g,''); });
+      if(copyHotlineBtn) copyHotlineBtn.addEventListener('click', ()=> { const info = getHotlineForSelected(); navigator.clipboard?.writeText(info.hotline).then(()=> toast('Copied number','success'), ()=> toast('Copy failed','warning')); });
+
+      // REMINDERS
+      function loadReminders(){ reminders = loadJSON(REM_KEY, []); }
+      function saveReminders(){ saveJSON(REM_KEY, reminders); }
+      function renderReminders(){
+        if(!remList) return;
+        remList.innerHTML = '';
+        if(reminders.length === 0){ remList.innerHTML = '<div class="small-muted">No reminders</div>'; return; }
+        reminders.slice().sort((a,b)=> new Date(a.time) - new Date(b.time)).forEach(r=>{
+          const div=document.createElement('div'); div.className='d-flex justify-content-between gap-2 mb-2 p-2 border rounded';
+          div.innerHTML = `<div><strong>${esc(r.msg)}</strong><div class="small-muted">${new Date(r.time).toLocaleString()}</div></div>
+            <div class="d-flex gap-1"><button class="btn btn-sm btn-outline-danger del-rem" data-id="${r.id}">Delete</button></div>`;
+          remList.appendChild(div);
+        });
+        remList.querySelectorAll('.del-rem')?.forEach(b=> b.addEventListener('click', (ev)=>{
+          const id = ev.currentTarget.dataset.id; if(!confirm('Delete reminder?')) return; reminders = reminders.filter(x=> x.id !== id); saveReminders(); renderReminders(); toast('Deleted','success');
+        }));
+      }
+      if(addRemBtn) addRemBtn.addEventListener('click', ()=>{
+        const msg = (remMsg?.value||'').trim(); const time = remTime?.value;
+        if(!msg || !time){ toast('Enter message and date/time','warning'); return; }
+        const dt = new Date(time); if(isNaN(dt.getTime())){ toast('Invalid date/time','warning'); return; }
+        const id = 'r_' + Date.now(); reminders.push({ id, msg, time: dt.toISOString(), fired:false }); saveReminders(); remMsg.value=''; remTime.value=''; renderReminders(); toast('Reminder saved','success');
+        if('Notification' in window && Notification.permission === 'default') Notification.requestPermission().then(p => { if(p==='granted') toast('Notifications enabled','success'); else toast('Notifications denied','warning'); });
+      });
+
+      function checkReminders(){
+        try {
+          const now = new Date();
+          let changed = false;
+          reminders.forEach(r => {
+            if(r.fired) return;
+            const t = new Date(r.time);
+            if(t <= now){
+              if('Notification' in window && Notification.permission === 'granted'){
+                try {
+                  const n = new Notification('Reminder', { body: r.msg }); n.onclick = () => window.focus();
+                } catch(e){ console.warn('notification error', e); toast(r.msg, 'secondary', 5000); }
+              } else {
+                toast('Reminder: ' + r.msg, 'secondary', 5000);
+              }
+              r.fired = true; changed = true;
+            }
+          });
+          if(changed) saveReminders();
+          renderReminders();
+        } catch(e){ console.warn('checkReminders err', e); }
+      }
+      setInterval(checkReminders, 15000);
+
+      // wire up save/clear/export/open maps
+      if(saveBtn) saveBtn.addEventListener('click', saveToday);
+      if(clearBtn) clearBtn.addEventListener('click', clearToday);
+      if(exportBtn) exportBtn.addEventListener('click', exportToday);
+      if(openMapsBtn) openMapsBtn.addEventListener('click', ()=> window.open('https://www.google.com/maps/search/mental+health+clinic', '_blank'));
+
+      // initial render calls
+      renderHotlineInfo();
+      createCharts();
+      loadReminders();
+      renderReminders();
+      renderContacts();
+      renderEntries();
+      renderCharts();
+      loadToday();
+      checkReminders();
+
+      // expose a small debug helper on window
+      window._wellness_debug = {
+        store, contacts, reminders, reload: ()=> { loadReminders(); renderReminders(); renderEntries(); renderContacts(); renderCharts(); loadToday(); }
+      };
+
+      console.log('Wellness app initialised (robust). Use window._wellness_debug to inspect state.');
+    } catch (err) {
+      console.error('Unhandled initialization error', err);
+      toast('App init failed — check console', 'danger', 5000);
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>
