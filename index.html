@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Student Mental Wellness Tracker — Advanced (Reminders & Hotlines)</title>
+  <title>Cool-Mind Tracker </title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -21,9 +21,14 @@
     html,body{height:100%;}
     body{
       font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background:linear-gradient(180deg,var(--bg), #e9f0ff 40%); color:var(--text); padding:18px; transition: background .25s,color .25s;
+      background: var(--text); color:var(--text); padding:18px; transition: background .25s,color .25s;
+    }
+    #moodChart{
+        background: white;
+        border-radius: 8px;
     }
     h4,div{ color:var(--text) }
+    .modal h4,.modal div{ color:black }
     .app{max-width:1200px;margin:0 auto}
     .card{border-radius:12px;box-shadow:0 10px 30px rgba(17,24,39,0.06);background:var(--card)}
     .small-muted{color:var(--muted)}
@@ -34,6 +39,19 @@
     .badge-xl{font-size:1rem;padding:.5rem .7rem}
     @media (max-width:768px){ .map-wrap{height:220px} }
     .rem-row .form-control{height:38px}
+    /* Confirm modal custom */
+    .confirm-modal .modal-header { background: linear-gradient(90deg,#ef4444,#d43b3b); color:#fff; border-bottom:0; }
+    .confirm-modal .modal-title { display:flex; gap:.75rem; align-items:center; font-weight:600 }
+    .confirm-modal .confirm-icon {
+      width:48px; height:48px; display:inline-grid; place-items:center; border-radius:50%;
+      background:rgba(255,255,255,0.15); font-size:22px;
+    }
+    .confirm-modal .modal-footer { border-top:0; }
+    .cool-mind-span{
+            color: #00ceff;
+    text-shadow: 0px -2px 15px;
+        font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -41,8 +59,8 @@
     <div class="card p-4 mb-3">
       <div class="d-flex align-items-center justify-content-between mb-2">
         <div>
-          <h4 class="mb-0">Student Mental Wellness Tracker — Advanced</h4>
-          <div class="small-muted">Reminders, emergency hotlines, dark mode, charts and local persistence.</div>
+          <h4 class="mb-0"><span class="cool-mind-span">Cool-Mind</span> Tracker</h4>
+          <div class="small-muted">Track your MIND.</div>
         </div>
 
         <div class="d-flex gap-2 align-items-center">
@@ -138,7 +156,7 @@
               <input id="contactNumber" class="form-control form-control-sm" placeholder="Phone (digits)">
               <button id="addContactBtn" class="btn btn-sm btn-primary">Add</button>
             </div>
-            <div class="small-muted mt-1">Saved locally; use these for quick calls.</div>
+            <div class="small-muted mt-1">Use these for quick calls.</div>
           </div>
 
           <hr class="my-3"/>
@@ -188,10 +206,10 @@
                   <strong>Reminders</strong>
                   <small class="small-muted">Desktop notifications (permission required)</small>
                 </div>
-                <div class="rem-row d-flex gap-2 align-items-center mb-2">
-                  <input id="remMsg" class="form-control" placeholder="Reminder message">
-                  <input id="remTime" class="form-control" type="datetime-local">
-                  <button id="addRemBtn" class="btn btn-primary">Add</button>
+                <div class="rem-row d-sm-flex d-xs-block gap-2 align-items-center mb-2">
+                  <input id="remMsg" class="form-control mt-2" placeholder="Reminder message">
+                  <input id="remTime" class="form-control mt-2" type="datetime-local">
+                  <button id="addRemBtn" class="btn btn-primary mt-2">Add</button>
                 </div>
                 <div id="remList" class="small-muted"></div>
                 <div class="small-muted mt-2">When a reminder is due, the app will show a desktop notification if allowed, otherwise an in-app toast.</div>
@@ -204,7 +222,7 @@
       </div>
     </div>
 
-    <div class="text-center small-muted">Local demo — reminders are local to your browser.</div>
+    <div class="text-center small-muted">Developed By <b>Sarabjeet Singh</b>.</div>
   </div>
 
   <!-- Emergency Modal -->
@@ -246,6 +264,31 @@
     </div>
   </div>
 
+  <!-- CONFIRM (Option C) - single reusable confirm modal -->
+  <div class="modal fade confirm-modal" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog  modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">
+            <div class="confirm-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div>
+              <div id="confirmTitle">Are you sure?</div>
+              <small id="confirmSub" class="">This action cannot be undone.</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="confirmMessage">Confirm this action?</div>
+        </div>
+        <div class="modal-footer">
+          <button id="confirmCancelBtn" type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button id="confirmOkBtn" type="button" class="btn btn-danger">Yes, continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast container -->
   <div id="toastPos" class="toast-pos"></div>
 
@@ -253,8 +296,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-/* Robust replacement script — paste into page replacing your old <script> block.
-   Defensive: checks for required elements, graceful fallbacks, logs errors.
+/* Robust replacement script — uses a Bootstrap confirm modal (Option C).
+   All confirm() calls replaced with confirmAsync().
 */
 (function(){
   'use strict';
@@ -273,6 +316,49 @@
     } catch (e) { console.warn('toast error', e); }
   }
 
+  // confirm modal wrapper -> returns Promise<boolean>
+  function confirmAsync({ title='Are you sure?', sub='', message='This action cannot be undone.', okText='Yes, continue', cancelText='Cancel'} = {}) {
+    return new Promise((resolve) => {
+      try {
+        const modalEl = document.getElementById('confirmModal');
+        const titleEl = document.getElementById('confirmTitle');
+        const subEl = document.getElementById('confirmSub');
+        const msgEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+
+        if(!modalEl) { // fallback to window.confirm
+          resolve(window.confirm(message));
+          return;
+        }
+
+        titleEl.textContent = title || 'Are you sure?';
+        subEl.textContent = sub || '';
+        msgEl.textContent = message || '';
+
+        okBtn.textContent = okText || 'Yes';
+        cancelBtn.textContent = cancelText || 'Cancel';
+
+        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static' });
+        const cleanup = () => {
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          modal.hide();
+        };
+        const onOk = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+
+        modal.show();
+      } catch (e) {
+        console.warn('confirmAsync error', e);
+        resolve(window.confirm(message));
+      }
+    });
+  }
+
   // DOM ready
   function ready(fn){
     if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
@@ -282,20 +368,7 @@
   ready(() => {
     try {
       // sanity: log environment
-      console.log('Wellness app (robust script) initialising...');
-
-      // required IDs used in the UI
-      const ids = ['todayLabel','localTime','themeToggle','themeIcon','moodRow','moodChart','compChart',
-        'prodRange','anxiety','stress','focus','energy','noteTitle','noteBody','saveBtn','clearBtn','exportBtn',
-        'entriesList','contactsWrap','addContactBtn','contactName','contactNumber','openMapsBtn',
-        'hotlineCountry','hotlineInfo','callHotlineBtn','copyHotlineBtn',
-        'remMsg','remTime','addRemBtn','remList'
-      ];
-      const missing = ids.filter(id => !document.getElementById(id));
-      if(missing.length) {
-        console.warn('Some expected elements are missing from DOM — app will still try to run. Missing:', missing);
-        toast('Some UI elements missing — check console.', 'warning', 3500);
-      }
+      console.log('Wellness app (confirm modal integrated) initialising...');
 
       // small helpers and state
       const STORE_KEY = 'WELLNESS_ADV_V2';
@@ -380,7 +453,7 @@
       // render mood buttons
       if(moodRow){
         moodRow.innerHTML = '';
-        moods.forEach(m=>{
+        moods.forEach(m=> {
           const btn = document.createElement('button');
           btn.type='button'; btn.className='btn btn-light mood-btn'; btn.dataset.mood = m.id;
           btn.innerHTML = `<div style="font-size:20px">${m.emoji}</div><div class="small-muted" style="font-size:12px">${m.label}</div>`;
@@ -398,7 +471,7 @@
       // helper: selected mood
       function getSelectedMood(){ const b = document.querySelector('#moodRow .mood-btn.active'); return b ? Number(b.dataset.mood) : null; }
 
-      // save / load today logic (robust, same as before)
+      // save / load today logic
       function todayKey(){ return new Date().toISOString().slice(0,10); }
       function shortDate(iso){ const d=new Date(iso); return (d.getMonth()+1)+'/'+d.getDate(); }
 
@@ -415,7 +488,12 @@
 
       // update UI for an entry (safe)
       function updateWellnessUI(entry){
-        if(!entry) return;
+        if(!entry) {
+          const wb = $('wellnessBadge'); const wt = $('wellnessText');
+          if(wb) { wb.textContent = 'Score: -'; wb.className = 'badge bg-danger border badge-xl'; }   
+          if(wt) wt.textContent = '—';
+          return;
+        }
         const w = computeWellness(entry);
         const wb = $('wellnessBadge'); const wt = $('wellnessText');
         if(wb) { wb.textContent = 'Score: ' + w.score; wb.className = w.score >= 80 ? 'badge bg-success badge-xl' : w.score >= 60 ? 'badge bg-warning text-dark badge-xl' : 'badge bg-danger badge-xl'; }
@@ -423,7 +501,7 @@
         if(compChart) {
           try {
             compChart.data.datasets[0].data = [
-              Math.round(w.breakdown.negative * 100),
+              Math.round((w.breakdown.negative||0) * 100),
               Math.round((w.breakdown.sleepS||0) * 100),
               Math.round(((w.breakdown.focusS||0) + (w.breakdown.energyS||0))/2 * 100),
               Math.round((w.breakdown.prodS||0) * 100)
@@ -439,14 +517,14 @@
         if(e){
           document.querySelectorAll('#moodRow .mood-btn')?.forEach(b=> b.classList.toggle('active', Number(b.dataset.mood) === e.mood));
           if(prodRange) prodRange.value = e.prod; if(anxiety) anxiety.value = e.anxiety; if(stress) stress.value = e.stress;
-          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if(sleep) sleep.value = e.sleep || 7;
+          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if($('sleep')) $('sleep').value = e.sleep || 7;
           if(noteTitle) noteTitle.value = e.title || ''; if(noteBody) noteBody.value = e.note || '';
           updateWellnessUI(e);
         } else {
           // defaults
           document.querySelectorAll('#moodRow .mood-btn')?.forEach(b=> b.classList.remove('active'));
           if(prodRange) prodRange.value = 5; if(anxiety) anxiety.value = 5; if(stress) stress.value = 5;
-          if(focus) focus.value = 5; if(energy) energy.value = 5; if(sleep) sleep.value = 7;
+          if(focus) focus.value = 5; if(energy) energy.value = 5; if($('sleep')) $('sleep').value = 7;
           if(noteTitle) noteTitle.value=''; if(noteBody) noteBody.value='';
           updateWellnessUI(null);
         }
@@ -475,12 +553,15 @@
           const key = ev.currentTarget.dataset.key; const e = store[key]; if(!e) return;
           document.querySelectorAll('#moodRow .mood-btn')?.forEach(btn=> btn.classList.toggle('active', Number(btn.dataset.mood) === e.mood));
           if(prodRange) prodRange.value = e.prod; if(anxiety) anxiety.value = e.anxiety; if(stress) stress.value = e.stress;
-          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if(sleep) sleep.value = e.sleep;
+          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if($('sleep')) $('sleep').value = e.sleep;
           if(noteTitle) noteTitle.value = e.title; if(noteBody) noteBody.value = e.note;
           toast('Loaded into form (not saved)', 'secondary');
         }));
-        entriesList.querySelectorAll('.delete-entry')?.forEach(b=> b.addEventListener('click', (ev)=>{
-          const key = ev.currentTarget.dataset.key; if(!confirm('Delete this entry?')) return;
+        // delete handlers use confirmAsync (Bootstrap modal)
+        entriesList.querySelectorAll('.delete-entry')?.forEach(b=> b.addEventListener('click', async (ev)=>{
+          const key = ev.currentTarget.dataset.key;
+          const ok = await confirmAsync({ title:'Delete entry?', sub:'This will remove the saved entry permanently.', message:'Do you want to delete this entry?', okText:'Delete', cancelText:'Cancel' });
+          if(!ok) return;
           delete store[key]; saveJSON(STORE_KEY, store); renderEntries(); renderCharts(); toast('Deleted','success');
         }));
       }
@@ -512,7 +593,7 @@
             stress: Number(stress?.value) || 0,
             focus: Number(focus?.value) || 0,
             energy: Number(energy?.value) || 0,
-            sleep: Number(sleep?.value) || 0,
+            sleep: Number($('sleep')?.value) || 0,
             title: noteTitle?.value.trim() || '',
             note: noteBody?.value.trim() || '',
             savedAt: new Date().toISOString()
@@ -522,11 +603,12 @@
         } catch(e){ console.error('saveToday err', e); toast('Save failed','warning'); }
       }
 
-      // clear today
-      function clearToday(){
+      // clear today (uses confirmAsync)
+      async function clearToday(){
         const k = todayKey();
         if(!store[k]) { toast('Nothing to clear','warning'); return; }
-        if(!confirm("Clear today's entry?")) return;
+        const ok = await confirmAsync({ title:'Clear today?', sub:'This will remove today\'s entry', message:'Are you sure you want to clear today\'s entry?', okText:'Clear', cancelText:'Cancel' });
+        if(!ok) return;
         delete store[k]; saveJSON(STORE_KEY, store); loadToday(); renderCharts(); renderEntries(); toast('Cleared','success');
       }
 
@@ -551,14 +633,16 @@
             <button class="btn btn-sm btn-outline-danger remove-contact" data-id="${c.id}"><i class="bi bi-trash"></i></button></div>`;
           contactsWrap.appendChild(chip);
         });
-        contactsWrap.querySelectorAll('.remove-contact')?.forEach(b=> b.addEventListener('click', (ev)=>{
-          const id = ev.currentTarget.dataset.id; if(!confirm('Remove contact?')) return;
+        contactsWrap.querySelectorAll('.remove-contact')?.forEach(b=> b.addEventListener('click', async (ev)=>{
+          const id = ev.currentTarget.dataset.id;
+          const ok = await confirmAsync({ title:'Remove contact?', sub:'This will remove the contact', message:'Remove emergency contact?', okText:'Remove', cancelText:'Cancel' });
+          if(!ok) return;
           contacts = contacts.filter(x=> x.id !== id); saveJSON(CONTACT_KEY, contacts); renderContacts(); toast('Removed','success');
         }));
       }
 
       // add contact
-      if(addContactBtn) addContactBtn.addEventListener('click', ()=>{
+      if(addContactBtn) addContactBtn.addEventListener('click', ()=> {
         const name = (contactName?.value||'').trim(); const num = (contactNumber?.value||'').trim();
         if(!name || !/^\d{6,15}$/.test(num)){ toast('Enter name and valid number','warning'); return; }
         contacts.push({ id: 'c_' + Date.now(), name, number: num }); contactName.value=''; contactNumber.value='';
@@ -605,8 +689,11 @@
             <div class="d-flex gap-1"><button class="btn btn-sm btn-outline-danger del-rem" data-id="${r.id}">Delete</button></div>`;
           remList.appendChild(div);
         });
-        remList.querySelectorAll('.del-rem')?.forEach(b=> b.addEventListener('click', (ev)=>{
-          const id = ev.currentTarget.dataset.id; if(!confirm('Delete reminder?')) return; reminders = reminders.filter(x=> x.id !== id); saveReminders(); renderReminders(); toast('Deleted','success');
+        remList.querySelectorAll('.del-rem')?.forEach(b=> b.addEventListener('click', async (ev)=>{
+          const id = ev.currentTarget.dataset.id;
+          const ok = await confirmAsync({ title:'Delete reminder?', sub:'This will remove the reminder', message:'Delete this reminder?', okText:'Delete', cancelText:'Cancel' });
+          if(!ok) return;
+          reminders = reminders.filter(x=> x.id !== id); saveReminders(); renderReminders(); toast('Deleted','success');
         }));
       }
       if(addRemBtn) addRemBtn.addEventListener('click', ()=>{
@@ -663,7 +750,7 @@
         store, contacts, reminders, reload: ()=> { loadReminders(); renderReminders(); renderEntries(); renderContacts(); renderCharts(); loadToday(); }
       };
 
-      console.log('Wellness app initialised (robust). Use window._wellness_debug to inspect state.');
+      console.log('Wellness app initialised with Bootstrap confirm modal.');
     } catch (err) {
       console.error('Unhandled initialization error', err);
       toast('App init failed — check console', 'danger', 5000);
@@ -672,6 +759,5 @@
 
 })();
 </script>
-
 </body>
 </html>
