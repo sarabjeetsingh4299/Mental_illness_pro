@@ -728,6 +728,25 @@
       }
       setInterval(checkReminders, 15000);
 
+// --- wire up range/sliders so the value spans update live ---
+      
+function wireRangeToSpan(rangeEl, spanEl) {
+  if (!rangeEl || !spanEl) return;
+  // initialize
+  spanEl.textContent = rangeEl.value;
+  // update on input
+  rangeEl.addEventListener('input', function () {
+    spanEl.textContent = this.value;
+  });
+}
+
+// call for each slider (use the variables you already declared)
+wireRangeToSpan(anxiety, anxietyVal);
+wireRangeToSpan(stress, stressVal);
+wireRangeToSpan(focus, focusVal);
+wireRangeToSpan(prodRange, prodVal);
+wireRangeToSpan(energy, energyVal);
+
       // wire up save/clear/export/open maps
       if(saveBtn) saveBtn.addEventListener('click', saveToday);
       if(clearBtn) clearBtn.addEventListener('click', clearToday);
