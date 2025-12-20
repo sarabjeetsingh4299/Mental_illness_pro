@@ -2,781 +2,2257 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Cool-Mind Tracker </title>
+  <title>Cool-Mind AI Tracker</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- Bootstrap -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    :root{
-      --bg:#f7fbff; --card:#fff; --text:#0f172a; --muted:#6b7280; --brand:#2b6ef6;
+    :root {
+      --primary: #6366f1;
+      --secondary: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-light: #f8fafc;
+      --bg-card: #ffffff;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --border: #e2e8f0;
+      --shadow: rgba(0, 0, 0, 0.1);
     }
-    [data-theme="dark"]{
-      --bg:#071026; --card:#071426; --text:#e6eef8; --muted:#9aa6b2; --brand:#3b82f6;
+
+    [data-theme="dark"] {
+      --primary: #818cf8;
+      --secondary: #a78bfa;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --bg-light: #0f172a;
+      --bg-card: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
+      --shadow: rgba(0, 0, 0, 0.3);
     }
-    html,body{height:100%;}
-    body{
-      font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: var(--text); color:var(--text); padding:18px; transition: background .25s,color .25s;
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    #moodChart{
-        background: white;
-        border-radius: 8px;
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg-light) 0%, #e0e7ff 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      transition: all 0.3s ease;
+      overflow-x: hidden;
     }
-    h4,div{ color:var(--text) }
-    .modal h4,.modal div{ color:black }
-    .app{max-width:1200px;margin:0 auto}
-    .card{border-radius:12px;box-shadow:0 10px 30px rgba(17,24,39,0.06);background:var(--card)}
-    .small-muted{color:var(--muted)}
-    .mood-btn{font-size:20px;padding:.45rem .6rem;border-radius:8px}
-    .mood-btn.active{box-shadow:0 6px 18px rgba(17,24,39,.06);transform:translateY(-2px)}
-    .param{min-width:48px}
-    .toast-pos{position:fixed;right:16px;bottom:16px;z-index:1200}
-    .badge-xl{font-size:1rem;padding:.5rem .7rem}
-    @media (max-width:768px){ .map-wrap{height:220px} }
-    .rem-row .form-control{height:38px}
-    /* Confirm modal custom */
-    .confirm-modal .modal-header { background: linear-gradient(90deg,#ef4444,#d43b3b); color:#fff; border-bottom:0; }
-    .confirm-modal .modal-title { display:flex; gap:.75rem; align-items:center; font-weight:600 }
-    .confirm-modal .confirm-icon {
-      width:48px; height:48px; display:inline-grid; place-items:center; border-radius:50%;
-      background:rgba(255,255,255,0.15); font-size:22px;
+
+    [data-theme="dark"] body {
+      background: linear-gradient(135deg, var(--bg-light) 0%, #1e1b4b 100%);
     }
-    .confirm-modal .modal-footer { border-top:0; }
-    .cool-mind-span{
-            color: #00ceff;
-    text-shadow: 0px -2px 15px;
-        font-weight: 700;
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px var(--shadow);
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow: hidden;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: 20px;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-light);
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 24px;
+      color: var(--text-primary);
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-light);
+      color: var(--text-primary);
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    .modal-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .emergency-btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .emergency-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .emergency-btn:active {
+      transform: translateY(0);
+    }
+
+    .emergency-btn i {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .emergency-btn div {
+      text-align: left;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .emergency-btn strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    details summary {
+      list-style: none;
+      transition: all 0.3s ease;
+    }
+
+    details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details summary::before {
+      content: '▶';
+      display: inline-block;
+      margin-right: 8px;
+      transition: transform 0.3s ease;
+    }
+
+    details[open] summary::before {
+      transform: rotate(90deg);
+    }
+
+    details summary:hover {
+      background: var(--border);
+    }
+
+    .app { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 32px var(--shadow);
+      padding: 32px;
+      margin-bottom: 24px;
+      transition: all 0.3s ease;
+    }
+
+    [data-theme="dark"] .glass-card {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 48px var(--shadow);
+    }
+
+    .header { display: flex; justify-content: space-between; align-items: center; }
+
+    .logo { display: flex; align-items: center; gap: 12px; }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .logo-text h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+
+    .logo-text p { font-size: 14px; color: var(--text-secondary); margin: 0; }
+
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+
+    .btn-modern {
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .btn-primary-modern {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+
+    .btn-primary-modern:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-primary-modern:active {
+      transform: translateY(0);
+    }
+
+    .btn-outline-modern {
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn-outline-modern:hover {
+      background: var(--bg-light);
+      transform: translateY(-2px);
+    }
+
+    .btn-outline-modern:active {
+      transform: translateY(0);
+    }
+
+    .mood-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 12px;
+    }
+
+    .mood-btn {
+      padding: 20px;
+      border-radius: 16px;
+      border: 2px solid var(--border);
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+
+    .mood-btn:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .mood-btn.active {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+      transform: scale(1.05);
+    }
+
+    .mood-emoji { font-size: 36px; margin-bottom: 8px; }
+
+    .slider-container { margin: 24px 0; }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--border);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      touch-action: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 12px var(--primary);
+    }
+
+    .slider::-webkit-slider-thumb:active {
+      transform: scale(1.3);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      cursor: pointer;
+      border: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 12px var(--primary);
+    }
+
+    .slider::-moz-range-thumb:active {
+      transform: scale(1.3);
+    }
+
+    .wellness-score {
+      text-align: center;
+      padding: 32px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+
+    .score-value {
+      font-size: 64px;
+      font-weight: 700;
+      margin: 16px 0;
+    }
+
+    .ai-insights {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+      border-radius: 16px;
+      padding: 24px;
+      border-left: 4px solid var(--primary);
+    }
+
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .chart-container { position: relative; height: 300px; margin: 24px 0; }
+
+    .ai-chat { 
+      position: fixed; 
+      bottom: 24px; 
+      right: 24px; 
+      z-index: 1000; 
+    }
+
+    .chat-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chat-button:hover { 
+      transform: scale(1.1); 
+    }
+
+    .chat-window {
+      position: fixed;
+      bottom: 100px;
+      right: 24px;
+      width: 380px;
+      height: 550px;
+      background: var(--bg-card);
+      border-radius: 20px;
+      box-shadow: 0 12px 48px var(--shadow);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 1001;
+    }
+
+    .chat-window.active { 
+      display: flex; 
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 16px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chat-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .chat-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .chat-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+
+    .chat-backdrop.active {
+      display: block;
+    }
+
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
+
+    .chat-message {
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      max-width: 80%;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .chat-message strong {
+      font-weight: 700;
+      color: inherit;
+    }
+
+    .chat-message.user {
+      background: var(--primary);
+      color: white;
+      margin-left: auto;
+    }
+
+    .chat-message.ai {
+      background: var(--bg-light);
+      color: var(--text-primary);
+    }
+
+    .chat-input {
+      display: flex;
+      padding: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-right: 8px;
+      background: var(--bg-light);
+      color: var(--text-primary);
+      font-size: 16px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .chat-input input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin: 24px 0;
+    }
+
+    .stat-card {
+      padding: 24px;
+      border-radius: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .fade-in { animation: fadeIn 0.5s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px) {
+      .app { padding: 12px; }
+      .glass-card { padding: 20px; border-radius: 16px; }
+      
+      .header { 
+        flex-direction: column; 
+        gap: 16px; 
+        text-align: center;
+      }
+      
+      .logo { 
+        flex-direction: column; 
+        text-align: center; 
+      }
+      
+      .logo-text h1 { font-size: 24px; }
+      .logo-text p { font-size: 12px; }
+      
+      .header-actions { 
+        flex-direction: row; 
+        justify-content: center; 
+        width: 100%;
+        gap: 8px;
+      }
+      
+      .mood-selector { 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 8px;
+      }
+      
+      .mood-btn { 
+        padding: 12px 8px; 
+      }
+      
+      .mood-emoji { 
+        font-size: 28px; 
+        margin-bottom: 4px; 
+      }
+      
+      .mood-btn div { 
+        font-size: 12px; 
+      }
+      
+      .wellness-score { 
+        padding: 24px 16px; 
+      }
+      
+      .score-value { 
+        font-size: 48px; 
+      }
+      
+      .grid-2 { 
+        grid-template-columns: repeat(2, 1fr); 
+        gap: 12px; 
+      }
+      
+      .stat-card { 
+        padding: 16px; 
+      }
+      
+      .stat-icon { 
+        width: 40px; 
+        height: 40px; 
+        font-size: 20px; 
+      }
+      
+      .chart-container { 
+        height: 250px; 
+      }
+      
+      .chat-close {
+        display: flex;
+      }
+      
+      .chat-window { 
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        top: auto;
+        width: 100%;
+        height: 70vh;
+        max-height: 70vh;
+        border-radius: 20px 20px 0 0;
+        margin: 0;
+      }
+      
+      .chat-button {
+        width: 56px;
+        height: 56px;
+        font-size: 22px;
+      }
+      
+      .ai-chat {
+        bottom: 20px;
+        right: 20px;
+      }
+      
+      .chat-messages {
+        padding: 12px;
+      }
+      
+      .chat-message {
+        font-size: 14px;
+        padding: 10px;
+      }
+      
+      .chat-input {
+        padding: 12px;
+      }
+      
+      .chat-input input {
+        font-size: 16px;
+        padding: 10px;
+      }
+      
+      .chat-header {
+        padding: 14px;
+        font-size: 15px;
+      }
+      
+      .btn-modern { 
+        padding: 8px 12px; 
+        font-size: 14px; 
+      }
+      
+      .slider-label { 
+        font-size: 14px; 
+      }
+      
+      .emergency-btn { 
+        padding: 12px; 
+        gap: 12px; 
+      }
+      
+      .emergency-btn i { 
+        font-size: 20px; 
+      }
+      
+      .emergency-btn div strong { 
+        font-size: 14px; 
+      }
+      
+      .emergency-btn div div { 
+        font-size: 11px; 
+      }
+      
+      .modal-content { 
+        width: 95%; 
+        max-height: 90vh; 
+      }
+      
+      .modal-header { 
+        padding: 16px; 
+      }
+      
+      .modal-body { 
+        padding: 16px; 
+      }
+      
+      .modal-footer { 
+        padding: 12px 16px; 
+        flex-wrap: wrap; 
+      }
+      
+      .modal-footer button { 
+        flex: 1; 
+        min-width: 120px; 
+      }
+      
+      details summary { 
+        font-size: 14px; 
+        padding: 10px; 
+      }
+      
+      details div { 
+        font-size: 13px; 
+      }
+      
+      #noteTitle, #noteBody { 
+        font-size: 14px; 
+      }
+      
+      #contactName, #contactNumber { 
+        font-size: 14px; 
+      }
+    }
+
+    @media (max-width: 480px) {
+      .logo-icon { 
+        width: 40px; 
+        height: 40px; 
+        font-size: 20px; 
+      }
+      
+      .logo-text h1 { 
+        font-size: 20px; 
+      }
+      
+      .mood-selector { 
+        grid-template-columns: repeat(2, 1fr); 
+      }
+      
+      .grid-2 { 
+        grid-template-columns: 1fr; 
+      }
+      
+      .score-value { 
+        font-size: 40px; 
+      }
+      
+      .wellness-score div { 
+        font-size: 14px; 
+      }
+      
+      .glass-card h3 { 
+        font-size: 18px; 
+      }
+      
+      .glass-card h4 { 
+        font-size: 16px; 
+      }
+      
+      .chat-window { 
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        top: auto;
+        width: 100%;
+        height: 75vh;
+        max-height: 75vh;
+        border-radius: 16px 16px 0 0;
+      }
+      
+      .chat-button {
+        width: 52px;
+        height: 52px;
+        font-size: 20px;
+      }
+      
+      .ai-chat {
+        bottom: 16px;
+        right: 16px;
+      }
+      
+      .chat-messages {
+        padding: 10px;
+      }
+      
+      .chat-message {
+        font-size: 13px;
+        padding: 9px;
+        max-width: 85%;
+      }
+      
+      .chat-input {
+        padding: 10px;
+      }
+      
+      .chat-input input {
+        padding: 9px;
+        margin-right: 6px;
+      }
+      
+      .chat-input button {
+        padding: 9px 12px;
+      }
+      
+      .emergency-btn { 
+        flex-direction: column; 
+        text-align: center; 
+        padding: 16px; 
+      }
+      
+      .emergency-btn div { 
+        text-align: center; 
+      }
+      
+      .modal-footer { 
+        flex-direction: column; 
+      }
+      
+      .modal-footer button { 
+        width: 100%; 
+      }
+      
+      .btn-modern { 
+        padding: 10px 14px; 
+        font-size: 13px; 
+      }
+      
+      #contactName, #contactNumber { 
+        min-width: 0; 
+      }
+    }
+
+    @media (max-width: 360px) {
+      .app { 
+        padding: 8px; 
+      }
+      
+      .glass-card { 
+        padding: 16px; 
+      }
+      
+      .mood-selector { 
+        gap: 6px; 
+      }
+      
+      .mood-btn { 
+        padding: 10px 6px; 
+      }
+      
+      .mood-emoji { 
+        font-size: 24px; 
+      }
+      
+      .score-value { 
+        font-size: 36px; 
+      }
+      
+      .chat-button { 
+        width: 48px; 
+        height: 48px; 
+        font-size: 18px; 
+      }
+      
+      .ai-chat {
+        bottom: 12px;
+        right: 12px;
+      }
+      
+      .chat-window {
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        height: 80vh;
+        max-height: 80vh;
+        border-radius: 12px 12px 0 0;
+      }
+      
+      .chat-header {
+        padding: 12px;
+        font-size: 14px;
+      }
+      
+      .chat-messages {
+        padding: 8px;
+      }
+      
+      .chat-message {
+        font-size: 12px;
+        padding: 8px;
+      }
+      
+      .chat-input {
+        padding: 8px;
+      }
+      
+      .chat-input input {
+        padding: 8px;
+        font-size: 15px;
+      }
+    }
+
+    /* Landscape mode for mobile */
+    @media (max-height: 600px) and (orientation: landscape) {
+      .chat-window {
+        height: 80vh;
+        max-height: none;
+        bottom: 60px;
+      }
+      
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+      }
+      
+      .wellness-score {
+        padding: 16px;
+      }
+      
+      .score-value {
+        font-size: 36px;
+      }
     }
   </style>
 </head>
-<body>
-  <div class="app">
-    <div class="card p-4 mb-3">
-      <div class="d-flex align-items-center justify-content-between mb-2">
-        <div>
-          <h4 class="mb-0"><span class="cool-mind-span">Cool-Mind</span> Tracker</h4>
-          <div class="small-muted">Track your MIND.</div>
-        </div>
 
-        <div class="d-flex gap-2 align-items-center">
-          <div class="text-end small-muted me-2">
-            <div id="todayLabel"></div>
-            <div id="localTime" class="small-muted"></div>
+<body>
+  <!-- Modal Container -->
+  <div id="modalOverlay" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Message</h3>
+        <button class="modal-close" onclick="closeModal()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Dynamic content -->
+      </div>
+      <div class="modal-footer" id="modalFooter">
+        <!-- Dynamic buttons -->
+      </div>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="glass-card">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-icon">🧠</div>
+          <div class="logo-text">
+            <h1>Cool-Mind AI</h1>
+            <p>AI-Powered Mental Wellness Tracker</p>
           </div>
-          <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Toggle theme">
+        </div>
+        <div class="header-actions">
+          <div style="text-align: right; margin-right: 12px; color: var(--text-secondary); font-size: 14px;">
+            <div id="todayLabel"></div>
+            <div id="localTime"></div>
+          </div>
+          <button id="themeToggle" class="btn-outline-modern btn-modern">
             <i id="themeIcon" class="bi bi-moon"></i>
           </button>
         </div>
       </div>
+    </div>
 
-      <div class="row g-3">
-        <!-- LEFT: inputs -->
-        <div class="col-lg-5">
-          <div class="mb-2"><strong>Daily Snapshot</strong> <span class="small-muted">(select today's measures)</span></div>
+    <div class="glass-card fade-in">
+      <div class="wellness-score">
+        <div style="font-size: 18px; opacity: 0.9;">Today's Wellness Score</div>
+        <div class="score-value" id="wellnessScore">--</div>
+        <div id="wellnessText" style="font-size: 16px; opacity: 0.9;">Track your mood to see your score</div>
+      </div>
+    </div>
 
-          <div class="mb-2">
-            <label class="form-label">Mood</label>
-            <div id="moodRow" class="d-flex gap-2 flex-wrap" role="radiogroup" aria-label="Mood options"></div>
+    <div class="glass-card fade-in" id="aiInsightsCard" style="display: none;">
+      <div class="ai-insights">
+        <div class="ai-badge">
+          <i class="bi bi-stars"></i> AI Insights
+        </div>
+        <div id="aiInsightsContent"></div>
+      </div>
+    </div>
+
+    <div class="glass-card fade-in">
+      <h3 style="margin-bottom: 24px;">
+        <i class="bi bi-emoji-smile"></i> How are you feeling today?
+      </h3>
+      <div class="mood-selector" id="moodRow"></div>
+
+      <div style="margin-top: 32px;">
+        <div class="slider-container">
+          <div class="slider-label">
+            <span><i class="bi bi-heart-pulse"></i> Anxiety Level</span>
+            <span id="anxietyVal">5</span>
           </div>
+          <input type="range" class="slider" id="anxiety" min="0" max="10" value="5">
+        </div>
 
-          <div class="row gx-2">
-            <div class="col-6 mb-2">
-              <label class="form-label">Anxiety (0–10)</label>
-              <input id="anxiety" type="range" min="0" max="10" step="1" class="form-range">
-              <div class="small-muted">Value: <span id="anxietyVal">5</span></div>
-            </div>
-            <div class="col-6 mb-2">
-              <label class="form-label">Stress (0–10)</label>
-              <input id="stress" type="range" min="0" max="10" step="1" class="form-range">
-              <div class="small-muted">Value: <span id="stressVal">5</span></div>
-            </div>
-            <div class="col-6 mb-2">
-              <label class="form-label">Focus (0–10)</label>
-              <input id="focus" type="range" min="0" max="10" step="1" class="form-range">
-              <div class="small-muted">Value: <span id="focusVal">5</span></div>
-            </div>
-            <div class="col-6 mb-2">
-              <label class="form-label">Productivity (0–10)</label>
-              <input id="prodRange" type="range" min="0" max="10" step="1" class="form-range">
-              <div class="small-muted">Value: <span id="prodVal">5</span></div>
-            </div>
-            <div class="col-6 mb-2">
-              <label class="form-label">Sleep (hours)</label>
-              <input id="sleep" type="number" min="0" max="24" step="0.5" class="form-control param" value="7">
-              <div class="small-muted">Recommended: 6–9 hrs</div>
-            </div>
-            <div class="col-6 mb-2">
-              <label class="form-label">Energy (0–10)</label>
-              <input id="energy" type="range" min="0" max="10" step="1" class="form-range">
-              <div class="small-muted">Value: <span id="energyVal">5</span></div>
-            </div>
+        <div class="slider-container">
+          <div class="slider-label">
+            <span><i class="bi bi-activity"></i> Stress Level</span>
+            <span id="stressVal">5</span>
           </div>
+          <input type="range" class="slider" id="stress" min="0" max="10" value="5">
+        </div>
 
-          <div class="mb-3">
-            <label class="form-label">Journal / Notes</label>
-            <input id="noteTitle" class="form-control mb-2" placeholder="Entry title (optional)" maxlength="80"/>
-            <textarea id="noteBody" class="form-control" rows="5" maxlength="2000" placeholder="Write about your feelings, triggers, wins..."></textarea>
-            <div class="small-muted mt-1">Tip: 1–2 lines about what went well and what to improve.</div>
+        <div class="slider-container">
+          <div class="slider-label">
+            <span><i class="bi bi-bullseye"></i> Focus</span>
+            <span id="focusVal">5</span>
           </div>
+          <input type="range" class="slider" id="focus" min="0" max="10" value="5">
+        </div>
 
-          <div class="d-flex gap-2">
-            <button id="saveBtn" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save</button>
-            <button id="clearBtn" class="btn btn-outline-danger">Clear Today</button>
-            <button id="exportBtn" class="btn btn-outline-secondary ms-auto"><i class="bi bi-download me-1"></i>Export</button>
+        <div class="slider-container">
+          <div class="slider-label">
+            <span><i class="bi bi-graph-up"></i> Productivity</span>
+            <span id="prodVal">5</span>
           </div>
+          <input type="range" class="slider" id="prodRange" min="0" max="10" value="5">
+        </div>
 
-          <hr class="my-3"/>
-
-          <div><strong>Wellness Summary</strong></div>
-          <div class="mt-2 d-flex gap-2 align-items-center">
-            <div class="badge bg-light border badge-xl" id="wellnessBadge">Score: -</div>
-            <div class="small-muted" id="wellnessText">—</div>
+        <div class="slider-container">
+          <div class="slider-label">
+            <span><i class="bi bi-lightning"></i> Energy</span>
+            <span id="energyVal">5</span>
           </div>
+          <input type="range" class="slider" id="energy" min="0" max="10" value="5">
+        </div>
 
-          <hr class="my-3"/>
+        <div class="slider-container">
+          <div class="slider-label">
+            <span><i class="bi bi-moon-stars"></i> Sleep Hours</span>
+            <span id="sleepVal">7</span>
+          </div>
+          <input type="range" class="slider" id="sleep" min="0" max="12" value="7">
+        </div>
+      </div>
 
-          <div class="d-flex justify-content-between align-items-center">
-            <div><strong>Emergency</strong> <small class="small-muted">(hotlines & quick call)</small></div>
+      <div style="margin-top: 32px;">
+        <h4 style="margin-bottom: 16px;"><i class="bi bi-journal-text"></i> Daily Journal</h4>
+        <input type="text" id="noteTitle" placeholder="Title (optional)" 
+               style="width: 100%; border-radius: 12px; padding: 12px; border: 1px solid var(--border); background: var(--bg-light); margin-bottom: 12px;">
+        <textarea id="noteBody" rows="4" placeholder="How was your day? What's on your mind?"
+                  style="width: 100%; border-radius: 12px; padding: 12px; border: 1px solid var(--border); background: var(--bg-light);"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
+        <button id="saveBtn" class="btn-primary-modern btn-modern">
+          <i class="bi bi-save"></i> Save Entry
+        </button>
+        <button id="clearBtn" class="btn-outline-modern btn-modern">
+          <i class="bi bi-trash"></i> Clear
+        </button>
+        <button id="exportBtn" class="btn-outline-modern btn-modern">
+          <i class="bi bi-download"></i> Export
+        </button>
+        <button id="analyzeBtn" class="btn-outline-modern btn-modern">
+          <i class="bi bi-stars"></i> AI Analysis
+        </button>
+      </div>
+    </div>
+
+    <div class="glass-card fade-in">
+      <h3 style="margin-bottom: 24px;"><i class="bi bi-graph-up-arrow"></i> Your Progress</h3>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-2 fade-in">
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">
+          <i class="bi bi-calendar-check"></i>
+        </div>
+        <h4 id="totalEntries">0</h4>
+        <p style="color: var(--text-secondary); margin: 0;">Total Entries</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+          <i class="bi bi-trophy"></i>
+        </div>
+        <h4 id="avgScore">--</h4>
+        <p style="color: var(--text-secondary); margin: 0;">Average Score</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
+          <i class="bi bi-fire"></i>
+        </div>
+        <h4 id="streak">0</h4>
+        <p style="color: var(--text-secondary); margin: 0;">Day Streak</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: var(--secondary);">
+          <i class="bi bi-emoji-smile"></i>
+        </div>
+        <h4 id="bestMood">--</h4>
+        <p style="color: var(--text-secondary); margin: 0;">Most Common Mood</p>
+      </div>
+    </div>
+
+    <div class="glass-card fade-in">
+      <h3 style="margin-bottom: 24px;"><i class="bi bi-clock-history"></i> Recent Entries</h3>
+      <div id="entriesList"></div>
+    </div>
+
+    <div class="glass-card fade-in">
+      <h3 style="margin-bottom: 24px;"><i class="bi bi-telephone"></i> Emergency Contacts</h3>
+      
+      <!-- Crisis Hotlines -->
+      <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(245, 158, 11, 0.1)); border-radius: 16px; padding: 20px; margin-bottom: 20px; border-left: 4px solid var(--danger);">
+        <h4 style="margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+          <i class="bi bi-exclamation-triangle-fill" style="color: var(--danger);"></i>
+          Crisis Support - Available 24/7
+        </h4>
+        <div style="display: grid; gap: 12px;">
+          <a href="tel:988" class="emergency-btn" style="background: var(--danger); color: white;">
+            <i class="bi bi-telephone-fill"></i>
             <div>
-              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#emergencyModal"><i class="bi bi-exclamation-triangle-fill"></i> Hotlines</button>
+              <strong>988 - Suicide & Crisis Lifeline</strong>
+              <div style="font-size: 12px; opacity: 0.9;">24/7 Free & Confidential Support</div>
             </div>
-          </div>
-
-          <div class="mt-2">
-            <strong>Emergency Contacts</strong> <small class="small-muted"> (tap to call)</small>
-            <div id="contactsWrap" class="mt-2 mb-2 d-flex gap-2 flex-wrap"></div>
-
-            <div class="d-flex gap-2 mt-2">
-              <input id="contactName" class="form-control form-control-sm" placeholder="Name">
-              <input id="contactNumber" class="form-control form-control-sm" placeholder="Phone (digits)">
-              <button id="addContactBtn" class="btn btn-sm btn-primary">Add</button>
-            </div>
-            <div class="small-muted mt-1">Use these for quick calls.</div>
-          </div>
-
-          <hr class="my-3"/>
-
-          <div class="d-flex gap-2">
-            <button id="openMapsBtn" class="btn btn-outline-primary ms-auto"><i class="bi bi-geo-alt me-1"></i>Open in Google Maps</button>
-          </div>
-
-        </div>
-
-        <!-- RIGHT -->
-        <div class="col-lg-7">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="card p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <strong>Mood — 7 days</strong>
-                  <small class="small-muted">last week</small>
-                </div>
-                <canvas id="moodChart" class="mb-2"></canvas>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="card p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <strong>Composite metrics</strong>
-                </div>
-                <canvas id="compChart" class="mb-2"></canvas>
-                <div class="small-muted">Breakdown: Wellness score components.</div>
-              </div>
-            </div>
-
-            <div class="col-12">
-              <div class="card p-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <strong>Recent Entries</strong>
-                  <small class="small-muted">Saved locally</small>
-                </div>
-                <div id="entriesList"></div>
-              </div>
-            </div>
-
-            <div class="col-12">
-              <div class="card p-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <strong>Reminders</strong>
-                  <small class="small-muted">Desktop notifications (permission required)</small>
-                </div>
-                <div class="rem-row d-sm-flex d-xs-block gap-2 align-items-center mb-2">
-                  <input id="remMsg" class="form-control mt-2" placeholder="Reminder message">
-                  <input id="remTime" class="form-control mt-2" type="datetime-local">
-                  <button id="addRemBtn" class="btn btn-primary mt-2">Add</button>
-                </div>
-                <div id="remList" class="small-muted"></div>
-                <div class="small-muted mt-2">When a reminder is due, the app will show a desktop notification if allowed, otherwise an in-app toast.</div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="text-center small-muted">Developed By <b>Sarabjeet Singh</b>.</div>
-  </div>
-
-  <!-- Emergency Modal -->
-  <div class="modal fade" id="emergencyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title">Emergency & Hotlines</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p><strong>If you are in immediate danger, call your local emergency number right away.</strong></p>
-
-          <div class="mb-2">
-            <label class="form-label">Choose country</label>
-            <select id="hotlineCountry" class="form-select">
-              <option value="auto">Detect my country (if available)</option>
-              <option value="IN">India</option>
-              <option value="US">United States</option>
-              <option value="GB">United Kingdom</option>
-              <option value="AU">Australia</option>
-              <option value="OTHER">Other / International</option>
-            </select>
-          </div>
-
-          <div id="hotlineInfo" class="mb-3"></div>
-
-          <div class="d-flex gap-2">
-            <button id="callHotlineBtn" class="btn btn-danger"><i class="bi bi-telephone"></i> Call</button>
-            <button id="copyHotlineBtn" class="btn btn-outline-secondary"><i class="bi bi-clipboard"></i> Copy Number</button>
-          </div>
-
-          <div class="small-muted mt-3">If hotline not available, call <strong>112</strong> (emergency) or contact a trusted person immediately.</div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CONFIRM (Option C) - single reusable confirm modal -->
-  <div class="modal fade confirm-modal" id="confirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog  modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <div class="modal-title">
-            <div class="confirm-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+          </a>
+          <a href="sms:741741&body=HOME" class="emergency-btn" style="background: var(--warning); color: white;">
+            <i class="bi bi-chat-dots-fill"></i>
             <div>
-              <div id="confirmTitle">Are you sure?</div>
-              <small id="confirmSub" class="">This action cannot be undone.</small>
+              <strong>Text HOME to 741741</strong>
+              <div style="font-size: 12px; opacity: 0.9;">Crisis Text Line</div>
+            </div>
+          </a>
+          <a href="tel:911" class="emergency-btn" style="background: var(--danger); color: white;">
+            <i class="bi bi-shield-fill-exclamation"></i>
+            <div>
+              <strong>911 - Emergency Services</strong>
+              <div style="font-size: 12px; opacity: 0.9;">Police, Fire, Medical Emergency</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- International Crisis Lines -->
+      <details style="margin-bottom: 20px; cursor: pointer;">
+        <summary style="padding: 12px; background: var(--bg-light); border-radius: 12px; font-weight: 600; cursor: pointer;">
+          <i class="bi bi-globe"></i> International Crisis Helplines
+        </summary>
+        <div style="padding: 16px; background: var(--bg-light); border-radius: 12px; margin-top: 8px;">
+          <div style="display: grid; gap: 12px; font-size: 14px;">
+            <div><strong>🇨🇦 Canada:</strong> 1-833-456-4566</div>
+            <div><strong>🇬🇧 UK:</strong> 116 123 (Samaritans)</div>
+            <div><strong>🇦🇺 Australia:</strong> 13 11 14 (Lifeline)</div>
+            <div><strong>🇮🇳 India:</strong> 9152987821 (AASRA)</div>
+            <div><strong>🇩🇪 Germany:</strong> 0800 111 0 111</div>
+            <div><strong>🇫🇷 France:</strong> 01 45 39 40 00</div>
+            <div><strong>🇯🇵 Japan:</strong> 03-5774-0992</div>
+            <div><strong>🇧🇷 Brazil:</strong> 188 (CVV)</div>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
+              <a href="https://findahelpline.com" target="_blank" style="color: var(--primary); text-decoration: none;">
+                <i class="bi bi-search"></i> Find more helplines worldwide →
+              </a>
             </div>
           </div>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
-          <div id="confirmMessage">Confirm this action?</div>
+      </details>
+
+      <!-- Personal Emergency Contacts -->
+      <h4 style="margin-bottom: 12px;"><i class="bi bi-person-hearts"></i> Personal Emergency Contacts</h4>
+      <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+        <input type="text" id="contactName" placeholder="Name"
+               style="flex: 1; border-radius: 12px; padding: 12px; border: 1px solid var(--border); background: var(--bg-light);">
+        <input type="tel" id="contactNumber" placeholder="Phone"
+               style="flex: 1; border-radius: 12px; padding: 12px; border: 1px solid var(--border); background: var(--bg-light);">
+        <button id="addContactBtn" class="btn-primary-modern btn-modern">
+          <i class="bi bi-plus"></i>
+        </button>
+      </div>
+      <div id="contactsWrap" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+      
+      <button id="openMapsBtn" class="btn-outline-modern btn-modern" style="margin-top: 16px; width: 100%;">
+        <i class="bi bi-geo-alt"></i> Find Nearby Mental Health Clinics
+      </button>
+    </div>
+
+    <div style="text-align: center; padding: 24px; color: var(--text-secondary);">
+      Developed by <strong>Sarabjeet Singh</strong>
+    </div>
+  </div>
+
+  <div class="ai-chat">
+    <button class="chat-button" id="chatToggle">
+      <i class="bi bi-chat-dots"></i>
+    </button>
+    <div class="chat-backdrop" id="chatBackdrop"></div>
+    <div class="chat-window" id="chatWindow">
+      <div class="chat-header">
+        <div>
+          <i class="bi bi-robot"></i> AI Mental Health Assistant
         </div>
-        <div class="modal-footer">
-          <button id="confirmCancelBtn" type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button id="confirmOkBtn" type="button" class="btn btn-danger">Yes, continue</button>
+        <button class="chat-close" id="chatClose">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-message ai">
+          Hi! I'm your AI mental health assistant. How can I support you today?
         </div>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Type your message...">
+        <button class="btn-primary-modern btn-modern" id="chatSend">
+          <i class="bi bi-send"></i>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Toast container -->
-  <div id="toastPos" class="toast-pos"></div>
+  <script>
+// Modal Functions
+function showModal(title, body, buttons = []) {
+  const overlay = document.getElementById("modalOverlay");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  const modalFooter = document.getElementById("modalFooter");
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  modalTitle.textContent = title;
+  modalBody.innerHTML = body;
+  
+  modalFooter.innerHTML = "";
+  buttons.forEach(btn => {
+    const button = document.createElement("button");
+    button.className = btn.primary ? "btn-primary-modern btn-modern" : "btn-outline-modern btn-modern";
+    button.innerHTML = btn.text;
+    button.onclick = () => {
+      if (btn.onClick) btn.onClick();
+      if (btn.closeOnClick !== false) closeModal();
+    };
+    modalFooter.appendChild(button);
+  });
 
-<script>
-/* Robust replacement script — uses a Bootstrap confirm modal (Option C).
-   All confirm() calls replaced with confirmAsync().
-*/
-(function(){
-  'use strict';
+  overlay.style.display = "flex";
+}
 
-  // small safe toast fallback if Bootstrap Toast not available yet
-  function toast(msg, cls='secondary', timeout=1800){
-    try {
-      const pos = document.getElementById('toastPos') || (function(){ const d=document.createElement('div'); d.id='toastPos'; d.style.position='fixed'; d.style.right='16px'; d.style.bottom='16px'; d.style.zIndex=1200; document.body.appendChild(d); return d; })();
-      const el = document.createElement('div');
-      el.className = `toast align-items-center text-bg-${cls} border-0 mb-2`;
-      el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
-      pos.appendChild(el);
-      const bsToast = bootstrap?.Toast ? new bootstrap.Toast(el,{delay: timeout}) : null;
-      if(bsToast){ bsToast.show(); el.addEventListener('hidden.bs.toast', ()=> el.remove()); }
-      else { setTimeout(()=> el.remove(), timeout); }
-    } catch (e) { console.warn('toast error', e); }
+function closeModal() {
+  document.getElementById("modalOverlay").style.display = "none";
+}
+
+function showAlert(message, title = "Message") {
+  showModal(title, `<p>${message}</p>`, [
+    { text: '<i class="bi bi-check"></i> OK', primary: true }
+  ]);
+}
+
+function showConfirm(message, onConfirm, title = "Confirm") {
+  showModal(title, `<p>${message}</p>`, [
+    { text: '<i class="bi bi-x"></i> Cancel', primary: false },
+    { text: '<i class="bi bi-check"></i> Confirm', primary: true, onClick: onConfirm }
+  ]);
+}
+
+function showPrompt(message, onSubmit, title = "Input", placeholder = "") {
+  const inputId = "modalPromptInput";
+  showModal(
+    title,
+    `<p>${message}</p><input type="text" id="${inputId}" class="modal-input" placeholder="${placeholder}" />`,
+    [
+      { text: '<i class="bi bi-x"></i> Cancel', primary: false },
+      { 
+        text: '<i class="bi bi-check"></i> Submit', 
+        primary: true, 
+        onClick: () => {
+          const value = document.getElementById(inputId).value.trim();
+          if (value) onSubmit(value);
+        }
+      }
+    ]
+  );
+  setTimeout(() => document.getElementById(inputId).focus(), 100);
+}
+
+// Close modal on overlay click
+document.addEventListener("click", (e) => {
+  if (e.target.id === "modalOverlay") closeModal();
+});
+
+// Close modal on Escape key
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
+
+class AIAssistant {
+  constructor() {
+    this.responses = {
+      greeting: [
+        "Hello! I'm here to support your mental wellness journey. How are you feeling today?",
+        "Hi there! I'm your AI mental health companion. What's on your mind?",
+        "Welcome! I'm here to listen and help. How can I support you today?"
+      ],
+      anxiety: [
+        "I understand anxiety can be overwhelming. Try the 4-7-8 breathing technique: breathe in for 4 seconds, hold for 7, exhale for 8.",
+        "Anxiety is tough, but you're not alone. Consider grounding yourself by naming 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.",
+        "When anxiety strikes, remember: this feeling is temporary. Try progressive muscle relaxation or a short walk."
+      ],
+      stress: [
+        "Stress management is key. Have you tried breaking tasks into smaller, manageable chunks?",
+        "High stress levels detected. Consider taking a 5-minute break to stretch or practice mindfulness.",
+        "Remember to be kind to yourself. Stress is normal, but chronic stress needs attention. Consider talking to a professional."
+      ],
+      sleep: [
+        "Good sleep is crucial for mental health. Try maintaining a consistent sleep schedule and avoiding screens before bed.",
+        "Sleep issues can affect mood significantly. Consider creating a relaxing bedtime routine.",
+        "Aim for 7-9 hours of sleep. If you're struggling, avoid caffeine after 2 PM and keep your bedroom cool and dark."
+      ],
+      positive: [
+        "That's wonderful! Keep up the great work. What's contributing to your positive mood?",
+        "I'm so glad you're feeling good! This is a great time to reflect on what's working well.",
+        "Excellent! Remember this feeling and what led to it. You're doing great!"
+      ],
+      support: [
+        "Remember, seeking help is a sign of strength, not weakness.",
+        "You're taking important steps by tracking your mental health. That's commendable!",
+        "Every day is a new opportunity. Be patient and kind with yourself."
+      ]
+    };
   }
 
-  // confirm modal wrapper -> returns Promise<boolean>
-  function confirmAsync({ title='Are you sure?', sub='', message='This action cannot be undone.', okText='Yes, continue', cancelText='Cancel'} = {}) {
-    return new Promise((resolve) => {
-      try {
-        const modalEl = document.getElementById('confirmModal');
-        const titleEl = document.getElementById('confirmTitle');
-        const subEl = document.getElementById('confirmSub');
-        const msgEl = document.getElementById('confirmMessage');
-        const okBtn = document.getElementById('confirmOkBtn');
-        const cancelBtn = document.getElementById('confirmCancelBtn');
+  analyzeEntry(entry) {
+    const insights = [];
+    const score = this.computeScore(entry);
 
-        if(!modalEl) { // fallback to window.confirm
-          resolve(window.confirm(message));
-          return;
+    if (entry.mood <= 1) {
+      insights.push("🔵 Your mood seems low today. Consider reaching out to someone you trust or engaging in an activity you enjoy.");
+    } else if (entry.mood >= 3) {
+      insights.push("🟢 Great mood today! Keep doing what you're doing.");
+    }
+
+    if (entry.anxiety >= 7 || entry.stress >= 7) {
+      insights.push("🟡 High anxiety/stress detected. Try deep breathing exercises or a short meditation session.");
+    }
+
+    if (entry.sleep < 6) {
+      insights.push("🟠 You're not getting enough sleep. Aim for 7-9 hours for optimal mental health.");
+    } else if (entry.sleep > 9) {
+      insights.push("🟠 You might be oversleeping. This can sometimes indicate depression or other issues.");
+    }
+
+    if (entry.focus < 4 && entry.prod < 4) {
+      insights.push("🔴 Low focus and productivity. Take breaks, stay hydrated, and consider the Pomodoro technique.");
+    }
+
+    if (entry.energy < 4) {
+      insights.push("⚡ Low energy levels. Make sure you're eating well, staying hydrated, and getting some physical activity.");
+    }
+
+    if (score >= 80) {
+      insights.push("✨ Excellent wellness score! You're in a great place mentally.");
+    } else if (score < 50) {
+      insights.push("❤️ Your wellness score suggests you might need extra support. Consider talking to a mental health professional.");
+    }
+
+    return insights;
+  }
+
+  generateRecommendations(history) {
+    const recommendations = [];
+    
+    if (history.length < 3) {
+      return ["📊 Keep tracking daily to unlock personalized AI insights and patterns!"];
+    }
+
+    const avgAnxiety = history.reduce((sum, e) => sum + e.anxiety, 0) / history.length;
+    const avgStress = history.reduce((sum, e) => sum + e.stress, 0) / history.length;
+    const avgSleep = history.reduce((sum, e) => sum + e.sleep, 0) / history.length;
+
+    if (avgAnxiety > 6) {
+      recommendations.push("🧘 Your anxiety levels have been consistently high. Consider mindfulness meditation or yoga.");
+    }
+
+    if (avgStress > 6) {
+      recommendations.push("💆 Chronic stress detected. Try stress-management techniques like journaling or talking to a therapist.");
+    }
+
+    if (avgSleep < 6.5) {
+      recommendations.push("😴 You're averaging less sleep than recommended. Prioritize sleep hygiene for better mental health.");
+    }
+
+    const recentMoods = history.slice(-7).map(e => e.mood);
+    const moodTrend = recentMoods[recentMoods.length - 1] - recentMoods[0];
+    
+    if (moodTrend > 1) {
+      recommendations.push("📈 Your mood has been improving! Keep up whatever you're doing.");
+    } else if (moodTrend < -1) {
+      recommendations.push("📉 Your mood has been declining. This might be a good time to reach out for support.");
+    }
+
+    return recommendations.length > 0 ? recommendations : ["✅ You're doing well! Keep tracking to maintain your mental wellness."];
+  }
+
+  computeScore(entry) {
+    const moodS = entry.mood / 4;
+    const prodS = entry.prod / 10;
+    const focusS = entry.focus / 10;
+    const energyS = entry.energy / 10;
+    const sleepS = Math.max(0, 1 - Math.abs(7 - entry.sleep) / 7);
+    const negative = (entry.stress + entry.anxiety) / 20;
+
+    const weighted =
+      moodS * 0.22 +
+      prodS * 0.22 +
+      focusS * 0.18 +
+      energyS * 0.18 +
+      sleepS * 0.20;
+
+    return Math.max(0, Math.round(weighted * (1 - negative) * 100));
+  }
+
+  analyzeSentiment(text) {
+    if (!text) return "neutral";
+    
+    const positiveWords = ["happy", "great", "good", "excellent", "wonderful", "amazing", "better", "improved", "joy", "love"];
+    const negativeWords = ["sad", "bad", "terrible", "awful", "worse", "depressed", "anxious", "worried", "scared", "hate"];
+    
+    const lowerText = text.toLowerCase();
+    const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+    const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+    
+    if (positiveCount > negativeCount) return "positive";
+    if (negativeCount > positiveCount) return "negative";
+    return "neutral";
+  }
+
+  chatResponse(message, userHistory = []) {
+    const lowerMsg = message.toLowerCase();
+    const words = lowerMsg.split(/\s+/);
+    
+    // Context-aware responses based on user history
+    const hasHistory = userHistory.length > 0;
+    const recentEntry = hasHistory ? userHistory[userHistory.length - 1] : null;
+    
+    // Greetings with personalization
+    if (lowerMsg.match(/\b(hello|hi|hey|good morning|good evening|greetings)\b/)) {
+      const greetings = [
+        "Hello! I'm here to support your mental wellness journey. How are you feeling today?",
+        "Hi there! I'm your AI mental health companion. What's on your mind?",
+        "Welcome back! I'm here to listen and help. How can I support you today?",
+        hasHistory ? `Hi! I see you've been tracking for ${userHistory.length} days. How are things going?` : "Hello! Ready to talk about how you're feeling?",
+        "Hey! I'm all ears. What would you like to discuss today?"
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
+    }
+    
+    // Anxiety-related with techniques
+    if (lowerMsg.match(/\b(anxious|anxiety|panic|worried|nervous|fear|scared)\b/)) {
+      const anxietyResponses = [
+        "I understand anxiety can be overwhelming. Try the **4-7-8 breathing technique**: breathe in for 4 seconds, hold for 7, exhale for 8. This activates your parasympathetic nervous system.",
+        "Anxiety is tough, but you're not alone. Try the **5-4-3-2-1 grounding technique**: Name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, and 1 you taste.",
+        "When anxiety strikes, remember: **this feeling is temporary**. Your body is trying to protect you, but there's no real danger right now. Try progressive muscle relaxation.",
+        "Anxiety often comes from worrying about the future. Try bringing yourself to the **present moment** - focus on your breath, notice your surroundings, feel your feet on the ground.",
+        "Have you tried the **STOP technique**? Stop what you're doing, Take a breath, Observe your thoughts and feelings, Proceed with something that will support you.",
+        recentEntry && recentEntry.anxiety > 7 ? "I noticed your anxiety has been high lately. Consider journaling about what triggers it, or talking to a mental health professional." : "Physical exercise can really help with anxiety. Even a 10-minute walk can make a difference."
+      ];
+      return anxietyResponses[Math.floor(Math.random() * anxietyResponses.length)];
+    }
+    
+    // Stress management
+    if (lowerMsg.match(/\b(stress|stressed|overwhelm|overwhelmed|pressure|burnout|exhausted)\b/)) {
+      const stressResponses = [
+        "Stress management is key. Try the **Pomodoro Technique**: Work for 25 minutes, then take a 5-minute break. This prevents burnout.",
+        "When overwhelmed, **break tasks into tiny steps**. Instead of 'finish project', try 'write first paragraph' or 'make outline'.",
+        "Remember to be kind to yourself. Stress is your body's response to demands. **You're doing your best**, and that's enough.",
+        "High stress? Try this: **Write down everything** on your mind, then prioritize just 3 things for today. The rest can wait.",
+        "Physical signs of stress? Try **progressive muscle relaxation**: Tense each muscle group for 5 seconds, then release. Start with your toes and work up.",
+        recentEntry && recentEntry.stress > 7 ? "Your stress levels have been consistently high. This might be a good time to evaluate what you can delegate or say no to." : "Don't forget: **taking breaks is productive**. Your brain needs rest to function well.",
+        "Chronic stress affects your health. Consider talking to a therapist about **stress management strategies** tailored to you."
+      ];
+      return stressResponses[Math.floor(Math.random() * stressResponses.length)];
+    }
+    
+    // Sleep issues
+    if (lowerMsg.match(/\b(sleep|insomnia|tired|fatigue|exhausted|can't sleep|sleepy|rest)\b/)) {
+      const sleepResponses = [
+        "Good sleep is crucial for mental health. Try the **10-3-2-1-0 rule**: No caffeine 10hrs before bed, no food/alcohol 3hrs before, no work 2hrs before, no screens 1hr before, 0 times hitting snooze.",
+        "Sleep issues can affect mood significantly. Create a **relaxing bedtime routine**: dim lights, cool room (65-68°F), same bedtime each night.",
+        "Can't fall asleep? Try the **4-7-8 breathing** or **body scan meditation**. Don't force it - if you're awake after 20 minutes, get up and do something calming.",
+        "Aim for **7-9 hours** of sleep. Your brain consolidates memories and processes emotions during sleep - it's not optional!",
+        recentEntry && recentEntry.sleep < 6 ? "I see you've been getting less than 6 hours of sleep. This can seriously impact your mood and cognitive function. Prioritize sleep this week." : "Quality matters too! Avoid screens before bed - the blue light disrupts melatonin production.",
+        "Struggling with racing thoughts at night? Keep a **worry journal** by your bed. Write down concerns and tell yourself you'll deal with them tomorrow.",
+        "Consider your **sleep environment**: Is it dark enough? Quiet? Cool? Small changes can make a big difference."
+      ];
+      return sleepResponses[Math.floor(Math.random() * sleepResponses.length)];
+    }
+    
+    // Depression symptoms
+    if (lowerMsg.match(/\b(depressed|depression|sad|hopeless|empty|numb|worthless|suicidal)\b/)) {
+      const depressionResponses = [
+        "I hear you, and I'm concerned. If you're having thoughts of self-harm, please reach out to a crisis helpline immediately: **988 (US)** or your local emergency services.",
+        "Depression is a real illness, not a weakness. **You deserve support**. Please consider talking to a mental health professional - they can really help.",
+        "When you're feeling low, even small things feel impossible. That's the depression talking, not reality. **Be gentle with yourself**.",
+        "Try the **behavioral activation** approach: Do one small thing you used to enjoy, even if you don't feel like it. Sometimes action comes before motivation.",
+        "Depression often involves negative thought patterns. When you think 'I'm worthless', ask: **Would I say this to a friend?** Probably not. You deserve the same compassion.",
+        "Reach out to someone you trust. **Connection is powerful medicine** for depression, even when you feel like isolating.",
+        "If you're struggling, please don't wait. Mental health professionals have tools and strategies that can help. **You don't have to feel this way forever**."
+      ];
+      return depressionResponses[Math.floor(Math.random() * depressionResponses.length)];
+    }
+    
+    // Positive emotions
+    if (lowerMsg.match(/\b(happy|great|good|wonderful|amazing|excellent|fantastic|better|improved|joy|grateful)\b/)) {
+      const positiveResponses = [
+        "That's wonderful! 🎉 **Savor this feeling**. What specifically is contributing to your positive mood?",
+        "I'm so glad you're feeling good! This is a great time to **reflect on what's working well** so you can replicate it.",
+        "Excellent! **Write down what led to this feeling** - these insights are valuable for tough days ahead.",
+        "Love to hear it! 😊 Positive emotions are worth celebrating. What's the best part of your day so far?",
+        hasHistory ? `Your mood has been improving! Keep up whatever you're doing - it's working! 📈` : "That's great! Keep tracking these positive moments.",
+        "Wonderful! Remember: **you created this positive experience**. Give yourself credit for the choices that led here.",
+        "Fantastic! On good days, it's helpful to **build your resilience reserves** - connect with others, practice gratitude, or try something new."
+      ];
+      return positiveResponses[Math.floor(Math.random() * positiveResponses.length)];
+    }
+    
+    // Motivation and productivity
+    if (lowerMsg.match(/\b(motivation|motivated|productive|productivity|focus|concentrate|procrastination|lazy)\b/)) {
+      const motivationResponses = [
+        "Motivation often comes **after** starting, not before. Try the **2-minute rule**: commit to just 2 minutes. Usually, you'll keep going.",
+        "Struggling to focus? Try **time-blocking**: Dedicate specific time slots to specific tasks. Treat them like appointments.",
+        "Procrastination is often about **fear or perfectionism**, not laziness. What are you really avoiding? Break it down into smaller, less scary steps.",
+        "Your brain needs **variety and breaks**. Try the Pomodoro Technique: 25 minutes focused work, 5-minute break. Repeat.",
+        "Low productivity might mean you need **rest, not more pressure**. Are you getting enough sleep? Taking breaks? Eating well?",
+        "**Environment matters**: Clear your workspace, put phone away, use website blockers if needed. Make focus the path of least resistance.",
+        recentEntry && recentEntry.focus < 4 ? "I noticed your focus has been low. Check your basics: sleep, hydration, nutrition, and stress levels." : "Set **one priority** for today. Just one. Accomplish that, and the day is a success."
+      ];
+      return motivationResponses[Math.floor(Math.random() * motivationResponses.length)];
+    }
+    
+    // Relationships and social
+    if (lowerMsg.match(/\b(lonely|alone|isolated|friends|relationship|social|connection|talk to someone)\b/)) {
+      const socialResponses = [
+        "Feeling lonely is tough. **Connection is a basic human need**. Even small interactions count - chat with a cashier, call a friend, join an online community.",
+        "Quality over quantity in relationships. **One genuine connection** is worth more than dozens of superficial ones.",
+        "Reaching out when you feel isolated is hard, but it's exactly what helps. **Send that text**. Most people are happy to hear from you.",
+        "Social anxiety making it hard? Start small: **online communities, support groups, or activities** where the focus isn't on socializing (like classes or volunteering).",
+        "Remember: **everyone feels lonely sometimes**. It doesn't mean something is wrong with you. It means you're human and need connection.",
+        "If you're feeling isolated, consider **volunteering or joining a group** around your interests. Shared activities make connection easier.",
+        "Don't underestimate **weak ties**: casual acquaintances and brief interactions contribute to wellbeing too."
+      ];
+      return socialResponses[Math.floor(Math.random() * socialResponses.length)];
+    }
+    
+    // Self-care and wellness
+    if (lowerMsg.match(/\b(self care|self-care|wellness|health|exercise|meditation|mindfulness|yoga)\b/)) {
+      const selfCareResponses = [
+        "Self-care isn't selfish - it's **essential maintenance**. You can't pour from an empty cup.",
+        "Physical and mental health are connected. **Regular exercise** (even just walking) is as effective as medication for mild-moderate depression.",
+        "Mindfulness doesn't require hours of meditation. Try **micro-moments**: One mindful breath, noticing one sensation, one moment of gratitude.",
+        "Self-care basics: **Sleep, nutrition, movement, connection, and purpose**. When you're struggling, check these first.",
+        "**Meditation tip**: You don't need to 'clear your mind'. Just notice thoughts without judgment, like watching clouds pass. That's the practice.",
+        "Yoga combines movement, breath, and mindfulness - a **triple threat for mental health**. Even 10 minutes helps.",
+        "Self-care isn't just bubble baths. Sometimes it's **setting boundaries, saying no, or having difficult conversations**. Do what truly serves you."
+      ];
+      return selfCareResponses[Math.floor(Math.random() * selfCareResponses.length)];
+    }
+    
+    // Questions about the app or tracking
+    if (lowerMsg.match(/\b(how|what|why|when|track|app|score|wellness|help|use)\b/) && lowerMsg.includes("?")) {
+      const helpResponses = [
+        "I can help you understand your **mental wellness patterns**. Track your mood daily, and I'll provide insights based on your data.",
+        "Your **wellness score** is calculated from mood, stress, anxiety, focus, productivity, energy, and sleep. It gives you a quick snapshot of your overall wellbeing.",
+        "**Daily tracking** helps you spot patterns - like how sleep affects mood, or what triggers stress. Knowledge is power!",
+        "Use the **journal feature** to capture thoughts and feelings. Writing is therapeutic, and I can analyze sentiment to provide insights.",
+        "The **AI Analysis button** gives you personalized recommendations based on your recent entries. Try it after saving a few days!",
+        "I'm here to **listen, provide coping strategies, and help you understand your mental health**. I'm not a replacement for professional help, but I'm a good starting point.",
+        "Track consistently for best results. Even **30 seconds a day** can reveal valuable patterns about your mental health over time."
+      ];
+      return helpResponses[Math.floor(Math.random() * helpResponses.length)];
+    }
+    
+    // Thank you
+    if (lowerMsg.match(/\b(thank|thanks|appreciate|grateful)\b/)) {
+      const thanksResponses = [
+        "You're welcome! I'm here whenever you need support. 💙",
+        "Happy to help! Remember, **taking care of your mental health is important work**.",
+        "Anytime! You're doing great by prioritizing your wellbeing. 🌟",
+        "My pleasure! Keep up the great work on your mental wellness journey.",
+        "You're very welcome! Don't hesitate to reach out anytime you need to talk."
+      ];
+      return thanksResponses[Math.floor(Math.random() * thanksResponses.length)];
+    }
+    
+    // Crisis keywords - immediate response
+    if (lowerMsg.match(/\b(suicide|kill myself|end it all|want to die|hurt myself|self harm)\b/)) {
+      return "🚨 **I'm very concerned about you.** Please reach out for immediate help:\n\n**988** - Suicide & Crisis Lifeline (US)\n**Crisis Text Line**: Text HOME to 741741\n**International**: findahelpline.com\n\nYou matter, and there are people who want to help. Please don't face this alone.";
+    }
+    
+    // Default intelligent responses based on context
+    const contextualDefaults = [
+      "I'm here to listen. Can you tell me more about what you're experiencing?",
+      "That sounds challenging. **How are you coping** with this?",
+      "Thank you for sharing that with me. What would be most helpful for you right now?",
+      "I hear you. **Your feelings are valid**. What do you think might help in this moment?",
+      hasHistory ? `Based on your tracking, I've noticed some patterns. Would you like me to share insights about your ${userHistory.length} days of data?` : "I'm here to support you. How are you feeling today?",
+      "Sometimes it helps to **break things down**. What's the most pressing thing on your mind right now?",
+      "Remember: **You're not alone** in this. Many people experience similar challenges. What kind of support would help you most?",
+      "That's a lot to carry. Have you been able to **talk to anyone** about this?",
+      "I appreciate you opening up. **Self-awareness is the first step** to positive change. What's one small thing that might help today?"
+    ];
+    
+    return contextualDefaults[Math.floor(Math.random() * contextualDefaults.length)];
+  }
+
+  getRandomResponse(category) {
+    const responses = this.responses[category];
+    return responses[Math.floor(Math.random() * responses.length)];
+  }
+}
+
+const ai = new AIAssistant();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const $ = id => document.getElementById(id);
+
+  function toast(msg) {
+    showAlert(msg);
+  }
+
+  const STORE_KEY = "WELLNESS_DATA_V3";
+  const CONTACT_KEY = "CONTACTS_V3";
+  const THEME_KEY = "THEME_V3";
+
+  let store = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+  let contacts = JSON.parse(localStorage.getItem(CONTACT_KEY) || "[]");
+
+  const themeToggle = $("themeToggle");
+  const themeIcon = $("themeIcon");
+
+  function applyTheme(mode) {
+    if (mode === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+      themeIcon.className = "bi bi-sun";
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      themeIcon.className = "bi bi-moon";
+    }
+    localStorage.setItem(THEME_KEY, mode);
+  }
+
+  applyTheme(localStorage.getItem(THEME_KEY) || "light");
+
+  themeToggle.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    applyTheme(current === "dark" ? "light" : "dark");
+  });
+
+  $("todayLabel").textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
+
+  setInterval(() => {
+    $("localTime").textContent = new Date().toLocaleTimeString();
+  }, 1000);
+
+  const moods = [
+    { id: 0, emoji: "😭", label: "Very low" },
+    { id: 1, emoji: "😕", label: "Low" },
+    { id: 2, emoji: "😐", label: "Okay" },
+    { id: 3, emoji: "🙂", label: "Good" },
+    { id: 4, emoji: "😄", label: "Great" }
+  ];
+
+  const moodRow = $("moodRow");
+  moodRow.innerHTML = "";
+  moods.forEach(m => {
+    const btn = document.createElement("button");
+    btn.className = "mood-btn";
+    btn.dataset.mood = m.id;
+    btn.innerHTML = `<div class="mood-emoji">${m.emoji}</div><div style="font-size: 14px; font-weight: 600;">${m.label}</div>`;
+    btn.addEventListener("click", () => {
+      moodRow.querySelectorAll(".mood-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      updateWellnessPreview();
+    });
+    moodRow.appendChild(btn);
+  });
+
+  function getSelectedMood() {
+    const active = moodRow.querySelector(".mood-btn.active");
+    return active ? Number(active.dataset.mood) : null;
+  }
+
+  function bindRange(id, label) {
+    const input = $(id);
+    const span = $(label);
+    span.textContent = input.value;
+    input.addEventListener("input", () => {
+      span.textContent = input.value;
+      updateWellnessPreview();
+    });
+  }
+
+  bindRange("anxiety", "anxietyVal");
+  bindRange("stress", "stressVal");
+  bindRange("focus", "focusVal");
+  bindRange("prodRange", "prodVal");
+  bindRange("energy", "energyVal");
+  bindRange("sleep", "sleepVal");
+
+  function updateWellnessPreview() {
+    const mood = getSelectedMood();
+    if (mood === null) return;
+
+    const entry = {
+      mood,
+      anxiety: Number($("anxiety").value),
+      stress: Number($("stress").value),
+      focus: Number($("focus").value),
+      prod: Number($("prodRange").value),
+      energy: Number($("energy").value),
+      sleep: Number($("sleep").value)
+    };
+
+    const score = ai.computeScore(entry);
+    $("wellnessScore").textContent = score;
+    
+    const text = $("wellnessText");
+    if (score >= 80) text.textContent = "Excellent! You're doing great! 🎉";
+    else if (score >= 60) text.textContent = "Good! Keep it up! 👍";
+    else text.textContent = "Needs attention. Take care of yourself. ❤️";
+  }
+
+  function updateWellnessUI(entry) {
+    if (!entry) {
+      $("wellnessScore").textContent = "--";
+      $("wellnessText").textContent = "Track your mood to see your score";
+      return;
+    }
+
+    const score = ai.computeScore(entry);
+    $("wellnessScore").textContent = score;
+    
+    const text = $("wellnessText");
+    if (score >= 80) text.textContent = "Excellent! You're doing great! 🎉";
+    else if (score >= 60) text.textContent = "Good! Keep it up! 👍";
+    else text.textContent = "Needs attention. Take care of yourself. ❤️";
+  }
+
+  function showAIInsights(entry) {
+    const insights = ai.analyzeEntry(entry);
+    const card = $("aiInsightsCard");
+    const content = $("aiInsightsContent");
+    
+    if (insights.length > 0) {
+      content.innerHTML = insights.map(i => `<div style="margin: 8px 0; padding: 12px; background: rgba(255,255,255,0.5); border-radius: 8px;">${i}</div>`).join("");
+      card.style.display = "block";
+    }
+  }
+
+  function saveToday() {
+    const mood = getSelectedMood();
+    if (mood == null) return toast("Select mood first!");
+
+    const entry = {
+      date: new Date().toISOString().slice(0, 10),
+      mood,
+      anxiety: Number($("anxiety").value),
+      stress: Number($("stress").value),
+      focus: Number($("focus").value),
+      prod: Number($("prodRange").value),
+      energy: Number($("energy").value),
+      sleep: Number($("sleep").value),
+      title: $("noteTitle").value.trim(),
+      note: $("noteBody").value.trim()
+    };
+
+    store[entry.date] = entry;
+    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    updateWellnessUI(entry);
+    showAIInsights(entry);
+    renderEntries();
+    updateStats();
+    updateChart();
+    toast("✅ Entry saved successfully!");
+  }
+
+  $("saveBtn").onclick = saveToday;
+
+  $("analyzeBtn").onclick = () => {
+    const key = new Date().toISOString().slice(0, 10);
+    const entry = store[key];
+    
+    if (!entry) {
+      toast("Save an entry first to get AI analysis!");
+      return;
+    }
+
+    const sentiment = ai.analyzeSentiment(entry.note);
+    const insights = ai.analyzeEntry(entry);
+    const history = Object.values(store).sort((a, b) => a.date.localeCompare(b.date));
+    const recommendations = ai.generateRecommendations(history);
+
+    let analysis = `<h4>🤖 AI Analysis</h4>`;
+    analysis += `<p><strong>Sentiment:</strong> ${sentiment.toUpperCase()}</p>`;
+    analysis += `<h5>Insights:</h5><ul>`;
+    insights.forEach(i => analysis += `<li>${i}</li>`);
+    analysis += `</ul><h5>Recommendations:</h5><ul>`;
+    recommendations.forEach(r => analysis += `<li>${r}</li>`);
+    analysis += `</ul>`;
+
+    const card = $("aiInsightsCard");
+    const content = $("aiInsightsContent");
+    content.innerHTML = analysis;
+    card.style.display = "block";
+    card.scrollIntoView({ behavior: "smooth" });
+  };
+
+  function clearToday() {
+    const key = new Date().toISOString().slice(0, 10);
+    delete store[key];
+    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    loadToday();
+    toast("Cleared");
+  }
+
+  $("clearBtn").onclick = clearToday;
+
+  function exportToday() {
+    const key = new Date().toISOString().slice(0, 10);
+    const e = store[key];
+
+    if (!e) return toast("No entry to export");
+
+    const txt = `Cool-Mind AI Tracker Export
+Date: ${e.date}
+Mood: ${moods[e.mood].label}
+Wellness Score: ${ai.computeScore(e)}
+
+Metrics:
+- Stress: ${e.stress}/10
+- Anxiety: ${e.anxiety}/10
+- Focus: ${e.focus}/10
+- Productivity: ${e.prod}/10
+- Energy: ${e.energy}/10
+- Sleep: ${e.sleep} hours
+
+Title: ${e.title}
+
+Journal Entry:
+${e.note}
+
+AI Insights:
+${ai.analyzeEntry(e).join("\n")}`;
+
+    const blob = new Blob([txt], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "wellness-" + e.date + ".txt";
+    a.click();
+  }
+
+  $("exportBtn").onclick = exportToday;
+
+  function loadToday() {
+    const key = new Date().toISOString().slice(0, 10);
+    const e = store[key];
+
+    if (!e) {
+      $("noteTitle").value = "";
+      $("noteBody").value = "";
+      updateWellnessUI(null);
+      return;
+    }
+
+    $("noteTitle").value = e.title;
+    $("noteBody").value = e.note;
+
+    document.querySelectorAll(".mood-btn").forEach(b => 
+      b.classList.toggle("active", Number(b.dataset.mood) === e.mood)
+    );
+
+    $("anxiety").value = e.anxiety;
+    $("stress").value = e.stress;
+    $("focus").value = e.focus;
+    $("prodRange").value = e.prod;
+    $("energy").value = e.energy;
+    $("sleep").value = e.sleep;
+
+    $("anxietyVal").textContent = e.anxiety;
+    $("stressVal").textContent = e.stress;
+    $("focusVal").textContent = e.focus;
+    $("prodVal").textContent = e.prod;
+    $("energyVal").textContent = e.energy;
+    $("sleepVal").textContent = e.sleep;
+
+    updateWellnessUI(e);
+    showAIInsights(e);
+  }
+
+  loadToday();
+
+  function updateStats() {
+    const entries = Object.values(store);
+    $("totalEntries").textContent = entries.length;
+
+    if (entries.length > 0) {
+      const avgScore = entries.reduce((sum, e) => sum + ai.computeScore(e), 0) / entries.length;
+      $("avgScore").textContent = Math.round(avgScore);
+
+      const moodCounts = [0, 0, 0, 0, 0];
+      entries.forEach(e => moodCounts[e.mood]++);
+      const maxMood = moodCounts.indexOf(Math.max(...moodCounts));
+      $("bestMood").textContent = moods[maxMood].emoji;
+
+      const dates = Object.keys(store).sort().reverse();
+      let streak = 0;
+      
+      for (let i = 0; i < dates.length; i++) {
+        const expectedDate = new Date();
+        expectedDate.setDate(expectedDate.getDate() - i);
+        const expected = expectedDate.toISOString().slice(0, 10);
+        
+        if (dates[i] === expected) {
+          streak++;
+        } else {
+          break;
         }
+      }
+      
+      $("streak").textContent = streak;
+    }
+  }
 
-        titleEl.textContent = title || 'Are you sure?';
-        subEl.textContent = sub || '';
-        msgEl.textContent = message || '';
+  updateStats();
 
-        okBtn.textContent = okText || 'Yes';
-        cancelBtn.textContent = cancelText || 'Cancel';
+  let chart = null;
 
-        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static' });
-        const cleanup = () => {
-          okBtn.removeEventListener('click', onOk);
-          cancelBtn.removeEventListener('click', onCancel);
-          modal.hide();
-        };
-        const onOk = () => { cleanup(); resolve(true); };
-        const onCancel = () => { cleanup(); resolve(false); };
+  function updateChart() {
+    const entries = Object.values(store).sort((a, b) => a.date.localeCompare(b.date)).slice(-14);
+    
+    const ctx = $("trendChart").getContext("2d");
+    
+    if (chart) chart.destroy();
 
-        okBtn.addEventListener('click', onOk);
-        cancelBtn.addEventListener('click', onCancel);
-
-        modal.show();
-      } catch (e) {
-        console.warn('confirmAsync error', e);
-        resolve(window.confirm(message));
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: entries.map(e => new Date(e.date).toLocaleDateString("en", { month: "short", day: "numeric" })),
+        datasets: [
+          {
+            label: "Wellness Score",
+            data: entries.map(e => ai.computeScore(e)),
+            borderColor: "#6366f1",
+            backgroundColor: "rgba(99, 102, 241, 0.1)",
+            tension: 0.4,
+            fill: true
+          },
+          {
+            label: "Mood",
+            data: entries.map(e => e.mood * 25),
+            borderColor: "#8b5cf6",
+            backgroundColor: "rgba(139, 92, 246, 0.1)",
+            tension: 0.4,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: "top"
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100
+          }
+        }
       }
     });
   }
 
-  // DOM ready
-  function ready(fn){
-    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
-    else fn();
-  }
+  updateChart();
 
-  ready(() => {
-    try {
-      // sanity: log environment
-      console.log('Wellness app (confirm modal integrated) initialising...');
+  function renderEntries() {
+    const wrap = $("entriesList");
+    wrap.innerHTML = "";
 
-      // small helpers and state
-      const STORE_KEY = 'WELLNESS_ADV_V2';
-      const CONTACT_KEY = 'CONTACTS_ADV_V2';
-      const REM_KEY = 'WELLNESS_REMINDERS_V1';
-      const THEME_KEY = 'THEME_ADV_V2';
+    const keys = Object.keys(store).sort().reverse().slice(0, 10);
+    if (keys.length === 0) {
+      wrap.innerHTML = "<div style='text-align: center; padding: 32px; color: var(--text-secondary);'>No entries yet. Start tracking your mental wellness!</div>";
+      return;
+    }
 
-      const moods = [
-        {id:0, emoji:'😭', label:'Very low'},
-        {id:1, emoji:'😕', label:'Low'},
-        {id:2, emoji:'😐', label:'Okay'},
-        {id:3, emoji:'🙂', label:'Good'},
-        {id:4, emoji:'😄', label:'Great'}
-      ];
+    keys.forEach(k => {
+      const e = store[k];
+      const score = ai.computeScore(e);
 
-      // safe getter
-      const $ = id => document.getElementById(id);
-      const todayLabel = $('todayLabel'), localTime = $('localTime'), themeToggle = $('themeToggle'), themeIcon = $('themeIcon');
-      const moodRow = $('moodRow'), prodRange = $('prodRange'), prodVal = $('prodVal');
-      const anxiety = $('anxiety'), anxietyVal = $('anxietyVal'), stress = $('stress'), stressVal = $('stressVal');
-      const focus = $('focus'), focusVal = $('focusVal'), energy = $('energy'), energyVal = $('energyVal');
-      const noteTitle = $('noteTitle'), noteBody = $('noteBody'), saveBtn = $('saveBtn'), clearBtn = $('clearBtn'), exportBtn = $('exportBtn');
-      const entriesList = $('entriesList'), contactsWrap = $('contactsWrap'), addContactBtn = $('addContactBtn');
-      const contactName = $('contactName'), contactNumber = $('contactNumber'), openMapsBtn = $('openMapsBtn');
-      const hotlineCountry = $('hotlineCountry'), hotlineInfo = $('hotlineInfo'), callHotlineBtn = $('callHotlineBtn'), copyHotlineBtn = $('copyHotlineBtn');
-      const remMsg = $('remMsg'), remTime = $('remTime'), addRemBtn = $('addRemBtn'), remList = $('remList');
+      const div = document.createElement("div");
+      div.style.cssText = "padding: 20px; border: 1px solid var(--border); border-radius: 16px; margin-bottom: 16px; background: var(--bg-card);";
 
-      // charts - guard Chart creation in try/catch
-      let moodChart = null, compChart = null;
-      function createCharts(){
-        try {
-          if(!$('moodChart')) return;
-          const mctx = document.getElementById('moodChart').getContext('2d');
-          moodChart = new Chart(mctx, {
-            type:'line',
-            data:{ labels:[], datasets:[{ label:'Mood', data:[], borderColor:'#2b6ef6', backgroundColor:'rgba(43,110,246,0.12)', tension:0.3, fill:true, pointRadius:5 }]},
-            options:{ responsive:true, scales:{ y:{ min:0, max:4, ticks:{ stepSize:1 } } }, plugins:{ legend:{ display:false } } }
-          });
-        } catch(e){
-          console.warn('createCharts(mood) failed', e);
-        }
-        try {
-          if(!$('compChart')) return;
-          const cctx = document.getElementById('compChart').getContext('2d');
-          compChart = new Chart(cctx, {
-            type:'doughnut',
-            data:{ labels:['Stress+Anxiety','Sleep','Focus+Energy','Productivity'], datasets:[{ data:[1,1,1,1], backgroundColor:['#ef4444','#6b7280','#f59e0b','#3b82f6'] }]},
-            options:{ responsive:true, plugins:{ legend:{ position:'bottom' } } }
-          });
-        } catch(e){
-          console.warn('createCharts(comp) failed', e);
-        }
-      }
+      div.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 24px; margin-bottom: 4px;">${moods[e.mood].emoji}</div>
+            <strong style="font-size: 16px;">${e.title || moods[e.mood].label}</strong>
+            <div style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">${new Date(k).toLocaleDateString("en", { weekday: "long", month: "long", day: "numeric" })}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--primary);">${score}</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">Wellness Score</div>
+            <button class="btn-outline-modern btn-modern delete-entry" style="margin-top: 8px; padding: 6px 12px; font-size: 12px;">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+        ${e.note ? `<div style="color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">${e.note.substring(0, 150)}${e.note.length > 150 ? "..." : ""}</div>` : ""}
+      `;
 
-      // minimal storage helpers
-      function loadJSON(key, fallback){ try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e){ console.warn('loadJSON err', key, e); return fallback; } }
-      function saveJSON(key, value){ try { localStorage.setItem(key, JSON.stringify(value)); } catch(e){ console.warn('saveJSON err', key, e); } }
-
-      // small escape helper
-      function esc(s){ if(!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
-
-      // state
-      let store = loadJSON(STORE_KEY, {});
-      let contacts = loadJSON(CONTACT_KEY, []);
-      let reminders = loadJSON(REM_KEY, []);
-
-      // theme
-      function applyTheme(t){
-        try {
-          if(t === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); if(themeIcon) themeIcon.className='bi bi-sun'; if(themeToggle) themeToggle.title='Switch to light'; }
-          else { document.documentElement.removeAttribute('data-theme'); if(themeIcon) themeIcon.className='bi bi-moon'; if(themeToggle) themeToggle.title='Switch to dark'; }
-          saveJSON(THEME_KEY, t);
-        } catch(e){ console.warn('applyTheme error', e); }
-      }
-      (function(){ const saved = localStorage.getItem(THEME_KEY); applyTheme(saved === 'dark' ? 'dark' : 'light'); })();
-      if(themeToggle) themeToggle.addEventListener('click', ()=> applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-
-      // basic UI init
-      if(todayLabel) todayLabel.textContent = new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
-      if(localTime) { localTime.textContent = new Date().toLocaleTimeString(); setInterval(()=> localTime.textContent = new Date().toLocaleTimeString(), 1000); }
-
-      // render mood buttons
-      if(moodRow){
-        moodRow.innerHTML = '';
-        moods.forEach(m=> {
-          const btn = document.createElement('button');
-          btn.type='button'; btn.className='btn btn-light mood-btn'; btn.dataset.mood = m.id;
-          btn.innerHTML = `<div style="font-size:20px">${m.emoji}</div><div class="small-muted" style="font-size:12px">${m.label}</div>`;
-          btn.addEventListener('click', ()=> {
-            moodRow.querySelectorAll('.mood-btn')?.forEach(b=>b.classList.remove('active'));
-            btn.classList.add('active');
-          });
-          moodRow.appendChild(btn);
-        });
-      }
-
-      // chart creation
-      createCharts();
-
-      // helper: selected mood
-      function getSelectedMood(){ const b = document.querySelector('#moodRow .mood-btn.active'); return b ? Number(b.dataset.mood) : null; }
-
-      // save / load today logic
-      function todayKey(){ return new Date().toISOString().slice(0,10); }
-      function shortDate(iso){ const d=new Date(iso); return (d.getMonth()+1)+'/'+d.getDate(); }
-
-      function computeWellness(entry){
-        try {
-          const moodS = entry.mood/4, prodS = entry.prod/10, focusS = entry.focus/10, energyS = entry.energy/10;
-          const sleepS = Math.max(0, 1 - Math.abs(7 - (Number(entry.sleep)||7))/7);
-          const negative = (entry.stress + entry.anxiety) / 20;
-          const weighted = (moodS*0.22 + prodS*0.22 + focusS*0.18 + energyS*0.18 + sleepS*0.2);
-          const final = Math.max(0, Math.round((weighted * (1 - negative)) * 100));
-          return { score: final, breakdown:{moodS,prodS,focusS,energyS,sleepS,negative} };
-        } catch(e){ console.warn('computeWellness failed', e); return { score: 0, breakdown:{} }; }
-      }
-
-      // update UI for an entry (safe)
-      function updateWellnessUI(entry){
-        if(!entry) {
-          const wb = $('wellnessBadge'); const wt = $('wellnessText');
-          if(wb) { wb.textContent = 'Score: -'; wb.className = 'badge bg-danger border badge-xl'; }   
-          if(wt) wt.textContent = '—';
-          return;
-        }
-        const w = computeWellness(entry);
-        const wb = $('wellnessBadge'); const wt = $('wellnessText');
-        if(wb) { wb.textContent = 'Score: ' + w.score; wb.className = w.score >= 80 ? 'badge bg-success badge-xl' : w.score >= 60 ? 'badge bg-warning text-dark badge-xl' : 'badge bg-danger badge-xl'; }
-        if(wt) wt.textContent = w.score >= 80 ? 'Feeling good — keep it up.' : w.score >= 60 ? 'Reasonable — some areas to improve.' : 'Consider reaching out — take a short break.';
-        if(compChart) {
-          try {
-            compChart.data.datasets[0].data = [
-              Math.round((w.breakdown.negative||0) * 100),
-              Math.round((w.breakdown.sleepS||0) * 100),
-              Math.round(((w.breakdown.focusS||0) + (w.breakdown.energyS||0))/2 * 100),
-              Math.round((w.breakdown.prodS||0) * 100)
-            ];
-            compChart.update();
-          } catch(e){ console.warn('compChart update failed', e); }
-        }
-      }
-
-      // load today's entry into form
-      function loadToday(){
-        const key = todayKey(); const e = store[key];
-        if(e){
-          document.querySelectorAll('#moodRow .mood-btn')?.forEach(b=> b.classList.toggle('active', Number(b.dataset.mood) === e.mood));
-          if(prodRange) prodRange.value = e.prod; if(anxiety) anxiety.value = e.anxiety; if(stress) stress.value = e.stress;
-          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if($('sleep')) $('sleep').value = e.sleep || 7;
-          if(noteTitle) noteTitle.value = e.title || ''; if(noteBody) noteBody.value = e.note || '';
-          updateWellnessUI(e);
-        } else {
-          // defaults
-          document.querySelectorAll('#moodRow .mood-btn')?.forEach(b=> b.classList.remove('active'));
-          if(prodRange) prodRange.value = 5; if(anxiety) anxiety.value = 5; if(stress) stress.value = 5;
-          if(focus) focus.value = 5; if(energy) energy.value = 5; if($('sleep')) $('sleep').value = 7;
-          if(noteTitle) noteTitle.value=''; if(noteBody) noteBody.value='';
-          updateWellnessUI(null);
-        }
-      }
-
-      // entries rendering
-      function renderEntries(){
-        if(!entriesList) return;
-        entriesList.innerHTML = '';
-        const keys = Object.keys(store).sort((a,b)=> b.localeCompare(a));
-        if(keys.length === 0){ entriesList.innerHTML = '<div class="small-muted">No entries yet.</div>'; return; }
-        keys.forEach(k=>{
-          const e = store[k];
-          const el = document.createElement('div'); el.className='mb-2 p-2 border rounded';
-          el.innerHTML = `<div class="d-flex justify-content-between align-items-start">
-              <div><div><strong>${esc(e.title||moods[e.mood].label)}</strong> <span class="small-muted">• ${shortDate(e.date)}</span></div>
-              <div class="small-muted">${e.prod}/10 • Focus ${e.focus} • Energy ${e.energy} • Sleep ${e.sleep}h</div></div>
-              <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-secondary load-entry" data-key="${k}">Load</button>
-                <button class="btn btn-sm btn-outline-danger delete-entry" data-key="${k}">Delete</button>
-              </div></div>
-              <div class="mt-2">${esc(e.note).replace(/\n/g,'<br>')}</div>`;
-          entriesList.appendChild(el);
-        });
-        entriesList.querySelectorAll('.load-entry')?.forEach(b=> b.addEventListener('click', (ev)=>{
-          const key = ev.currentTarget.dataset.key; const e = store[key]; if(!e) return;
-          document.querySelectorAll('#moodRow .mood-btn')?.forEach(btn=> btn.classList.toggle('active', Number(btn.dataset.mood) === e.mood));
-          if(prodRange) prodRange.value = e.prod; if(anxiety) anxiety.value = e.anxiety; if(stress) stress.value = e.stress;
-          if(focus) focus.value = e.focus; if(energy) energy.value = e.energy; if($('sleep')) $('sleep').value = e.sleep;
-          if(noteTitle) noteTitle.value = e.title; if(noteBody) noteBody.value = e.note;
-          toast('Loaded into form (not saved)', 'secondary');
-        }));
-        // delete handlers use confirmAsync (Bootstrap modal)
-        entriesList.querySelectorAll('.delete-entry')?.forEach(b=> b.addEventListener('click', async (ev)=>{
-          const key = ev.currentTarget.dataset.key;
-          const ok = await confirmAsync({ title:'Delete entry?', sub:'This will remove the saved entry permanently.', message:'Do you want to delete this entry?', okText:'Delete', cancelText:'Cancel' });
-          if(!ok) return;
-          delete store[key]; saveJSON(STORE_KEY, store); renderEntries(); renderCharts(); toast('Deleted','success');
-        }));
-      }
-
-      // charts render
-      function renderCharts(){
-        try {
-          if(!moodChart) return;
-          const labels = []; const moodData = [];
-          for(let i=6;i>=0;i--){
-            const d = new Date(); d.setDate(d.getDate()-i); const key=d.toISOString().slice(0,10);
-            labels.push(shortDate(key)); const e = store[key]; moodData.push(e ? e.mood : null);
-          }
-          moodChart.data.labels = labels; moodChart.data.datasets[0].data = moodData; moodChart.update();
-        } catch(e){ console.warn('renderCharts error', e); }
-      }
-
-      // save today
-      function saveToday(){
-        try {
-          const key = todayKey();
-          const mood = getSelectedMood();
-          if(mood === null){ toast('Select mood first','warning'); return; }
-          const entry = {
-            date: key,
-            mood: mood,
-            prod: Number(prodRange?.value) || 0,
-            anxiety: Number(anxiety?.value) || 0,
-            stress: Number(stress?.value) || 0,
-            focus: Number(focus?.value) || 0,
-            energy: Number(energy?.value) || 0,
-            sleep: Number($('sleep')?.value) || 0,
-            title: noteTitle?.value.trim() || '',
-            note: noteBody?.value.trim() || '',
-            savedAt: new Date().toISOString()
-          };
-          store[key] = entry; saveJSON(STORE_KEY, store);
-          updateWellnessUI(entry); renderCharts(); renderEntries(); toast('Saved','success');
-        } catch(e){ console.error('saveToday err', e); toast('Save failed','warning'); }
-      }
-
-      // clear today (uses confirmAsync)
-      async function clearToday(){
-        const k = todayKey();
-        if(!store[k]) { toast('Nothing to clear','warning'); return; }
-        const ok = await confirmAsync({ title:'Clear today?', sub:'This will remove today\'s entry', message:'Are you sure you want to clear today\'s entry?', okText:'Clear', cancelText:'Cancel' });
-        if(!ok) return;
-        delete store[k]; saveJSON(STORE_KEY, store); loadToday(); renderCharts(); renderEntries(); toast('Cleared','success');
-      }
-
-      // export today
-      function exportToday(){
-        const k = todayKey(), e = store[k];
-        if(!e){ toast('No entry to export','warning'); return; }
-        const text = `Date: ${e.date}\nScore: ${computeWellness(e).score}\nMood: ${moods[e.mood].label}\nProductivity: ${e.prod}\nFocus: ${e.focus}\nEnergy: ${e.energy}\nSleep: ${e.sleep}\nStress: ${e.stress}\nAnxiety: ${e.anxiety}\n\nTitle: ${e.title}\n\nNotes:\n${e.note}`;
-        const blob = new Blob([text], { type:'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `wellness-${k}.txt`; a.click(); URL.revokeObjectURL(a.href);
-        toast('Exported','success');
-      }
-
-      // contacts
-      function renderContacts(){
-        if(!contactsWrap) return;
-        contactsWrap.innerHTML = '';
-        if(contacts.length === 0) contactsWrap.innerHTML = '<div class="small-muted">No emergency contacts.</div>';
-        contacts.forEach(c=>{
-          const chip = document.createElement('div'); chip.className='d-flex align-items-center gap-2';
-          chip.innerHTML = `<div><strong>${esc(c.name)}</strong><div class="small-muted" style="font-size:12px">${c.number}</div></div>
-            <div class="ms-2 d-flex gap-1"><a class="btn btn-sm btn-outline-success" href="tel:${c.number}"><i class="bi bi-telephone"></i></a>
-            <button class="btn btn-sm btn-outline-danger remove-contact" data-id="${c.id}"><i class="bi bi-trash"></i></button></div>`;
-          contactsWrap.appendChild(chip);
-        });
-        contactsWrap.querySelectorAll('.remove-contact')?.forEach(b=> b.addEventListener('click', async (ev)=>{
-          const id = ev.currentTarget.dataset.id;
-          const ok = await confirmAsync({ title:'Remove contact?', sub:'This will remove the contact', message:'Remove emergency contact?', okText:'Remove', cancelText:'Cancel' });
-          if(!ok) return;
-          contacts = contacts.filter(x=> x.id !== id); saveJSON(CONTACT_KEY, contacts); renderContacts(); toast('Removed','success');
-        }));
-      }
-
-      // add contact
-      if(addContactBtn) addContactBtn.addEventListener('click', ()=> {
-        const name = (contactName?.value||'').trim(); const num = (contactNumber?.value||'').trim();
-        if(!name || !/^\d{6,15}$/.test(num)){ toast('Enter name and valid number','warning'); return; }
-        contacts.push({ id: 'c_' + Date.now(), name, number: num }); contactName.value=''; contactNumber.value='';
-        saveJSON(CONTACT_KEY, contacts); renderContacts(); toast('Saved','success');
-      });
-
-      // HOTLINES: simple dataset
-      const HOTLINES = { 'IN': {country:'India', hotline:'9152987821', notes:'National Mental Health Helpline'},
-                         'US': {country:'United States', hotline:'988', notes:'988 Suicide & Crisis Lifeline'},
-                         'GB': {country:'United Kingdom', hotline:'116123', notes:'Samaritans'},
-                         'AU': {country:'Australia', hotline:'13 11 14', notes:'Lifeline Australia'},
-                         'OTHER': {country:'International', hotline:'112', notes:'Local emergency / 112'} };
-
-      function getHotlineForSelected(){
-        const sel = hotlineCountry?.value;
-        if(!sel || sel === 'auto') return HOTLINES.OTHER;
-        return HOTLINES[sel] || HOTLINES.OTHER;
-      }
-      function renderHotlineInfo(){
-        try {
-          if(!hotlineInfo) return;
-          const info = getHotlineForSelected();
-          hotlineInfo.innerHTML = `<div><strong>${info.country}</strong></div>
-            <div class="small-muted">${info.notes || 'Emergency/mental health support'}</div>
-            <div class="mt-2"><strong>Hotline:</strong> <span style="font-size:1.1rem">${info.hotline}</span></div>`;
-          if(callHotlineBtn) callHotlineBtn.textContent = 'Call ' + info.hotline;
-          if(copyHotlineBtn) copyHotlineBtn.textContent = 'Copy ' + info.hotline;
-        } catch(e){ console.warn('renderHotlineInfo', e); }
-      }
-      if(hotlineCountry) hotlineCountry.addEventListener('change', renderHotlineInfo);
-      if(callHotlineBtn) callHotlineBtn.addEventListener('click', ()=> { const info = getHotlineForSelected(); if(!info) return toast('Hotline not available','warning'); window.location.href = 'tel:' + info.hotline.replace(/\s/g,'').replace(/\+/g,''); });
-      if(copyHotlineBtn) copyHotlineBtn.addEventListener('click', ()=> { const info = getHotlineForSelected(); navigator.clipboard?.writeText(info.hotline).then(()=> toast('Copied number','success'), ()=> toast('Copy failed','warning')); });
-
-      // REMINDERS
-      function loadReminders(){ reminders = loadJSON(REM_KEY, []); }
-      function saveReminders(){ saveJSON(REM_KEY, reminders); }
-      function renderReminders(){
-        if(!remList) return;
-        remList.innerHTML = '';
-        if(reminders.length === 0){ remList.innerHTML = '<div class="small-muted">No reminders</div>'; return; }
-        reminders.slice().sort((a,b)=> new Date(a.time) - new Date(b.time)).forEach(r=>{
-          const div=document.createElement('div'); div.className='d-flex justify-content-between gap-2 mb-2 p-2 border rounded';
-          div.innerHTML = `<div><strong>${esc(r.msg)}</strong><div class="small-muted">${new Date(r.time).toLocaleString()}</div></div>
-            <div class="d-flex gap-1"><button class="btn btn-sm btn-outline-danger del-rem" data-id="${r.id}">Delete</button></div>`;
-          remList.appendChild(div);
-        });
-        remList.querySelectorAll('.del-rem')?.forEach(b=> b.addEventListener('click', async (ev)=>{
-          const id = ev.currentTarget.dataset.id;
-          const ok = await confirmAsync({ title:'Delete reminder?', sub:'This will remove the reminder', message:'Delete this reminder?', okText:'Delete', cancelText:'Cancel' });
-          if(!ok) return;
-          reminders = reminders.filter(x=> x.id !== id); saveReminders(); renderReminders(); toast('Deleted','success');
-        }));
-      }
-      if(addRemBtn) addRemBtn.addEventListener('click', ()=>{
-        const msg = (remMsg?.value||'').trim(); const time = remTime?.value;
-        if(!msg || !time){ toast('Enter message and date/time','warning'); return; }
-        const dt = new Date(time); if(isNaN(dt.getTime())){ toast('Invalid date/time','warning'); return; }
-        const id = 'r_' + Date.now(); reminders.push({ id, msg, time: dt.toISOString(), fired:false }); saveReminders(); remMsg.value=''; remTime.value=''; renderReminders(); toast('Reminder saved','success');
-        if('Notification' in window && Notification.permission === 'default') Notification.requestPermission().then(p => { if(p==='granted') toast('Notifications enabled','success'); else toast('Notifications denied','warning'); });
-      });
-
-      function checkReminders(){
-        try {
-          const now = new Date();
-          let changed = false;
-          reminders.forEach(r => {
-            if(r.fired) return;
-            const t = new Date(r.time);
-            if(t <= now){
-              if('Notification' in window && Notification.permission === 'granted'){
-                try {
-                  const n = new Notification('Reminder', { body: r.msg }); n.onclick = () => window.focus();
-                } catch(e){ console.warn('notification error', e); toast(r.msg, 'secondary', 5000); }
-              } else {
-                toast('Reminder: ' + r.msg, 'secondary', 5000);
-              }
-              r.fired = true; changed = true;
-            }
-          });
-          if(changed) saveReminders();
-          renderReminders();
-        } catch(e){ console.warn('checkReminders err', e); }
-      }
-      setInterval(checkReminders, 15000);
-
-// --- wire up range/sliders so the value spans update live ---
-      
-function wireRangeToSpan(rangeEl, spanEl) {
-  if (!rangeEl || !spanEl) return;
-  // initialize
-  spanEl.textContent = rangeEl.value;
-  // update on input
-  rangeEl.addEventListener('input', function () {
-    spanEl.textContent = this.value;
-  });
-}
-
-// call for each slider (use the variables you already declared)
-wireRangeToSpan(anxiety, anxietyVal);
-wireRangeToSpan(stress, stressVal);
-wireRangeToSpan(focus, focusVal);
-wireRangeToSpan(prodRange, prodVal);
-wireRangeToSpan(energy, energyVal);
-
-      // wire up save/clear/export/open maps
-      if(saveBtn) saveBtn.addEventListener('click', saveToday);
-      if(clearBtn) clearBtn.addEventListener('click', clearToday);
-      if(exportBtn) exportBtn.addEventListener('click', exportToday);
-      if(openMapsBtn) openMapsBtn.addEventListener('click', ()=> window.open('https://www.google.com/maps/search/mental+health+clinic', '_blank'));
-
-      // initial render calls
-      renderHotlineInfo();
-      createCharts();
-      loadReminders();
-      renderReminders();
-      renderContacts();
-      renderEntries();
-      renderCharts();
-      loadToday();
-      checkReminders();
-
-      // expose a small debug helper on window
-      window._wellness_debug = {
-        store, contacts, reminders, reload: ()=> { loadReminders(); renderReminders(); renderEntries(); renderContacts(); renderCharts(); loadToday(); }
+      div.querySelector(".delete-entry").onclick = () => {
+        showConfirm("Are you sure you want to delete this entry?", () => {
+          delete store[k];
+          localStorage.setItem(STORE_KEY, JSON.stringify(store));
+          renderEntries();
+          updateStats();
+          updateChart();
+          showAlert("Entry deleted successfully!");
+        }, "Delete Entry");
       };
 
-      console.log('Wellness app initialised with Bootstrap confirm modal.');
-    } catch (err) {
-      console.error('Unhandled initialization error', err);
-      toast('App init failed — check console', 'danger', 5000);
-    }
-  });
+      wrap.appendChild(div);
+    });
+  }
 
-})();
-</script>
+  renderEntries();
+
+  function renderContacts() {
+    const wrap = $("contactsWrap");
+    wrap.innerHTML = "";
+
+    if (contacts.length === 0) {
+      wrap.innerHTML = '<div style="text-align: center; padding: 16px; color: var(--text-secondary); font-size: 14px;">No personal contacts added yet</div>';
+      return;
+    }
+
+    contacts.forEach(c => {
+      const chip = document.createElement("div");
+      chip.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--bg-light); border: 1px solid var(--border); border-radius: 16px; width: 100%; margin-bottom: 8px;";
+
+      chip.innerHTML = `
+        <i class="bi bi-person-circle" style="font-size: 24px; color: var(--primary);"></i>
+        <div style="flex: 1;">
+          <strong>${c.name}</strong>
+          <div style="color: var(--text-secondary); font-size: 14px;">${c.number}</div>
+        </div>
+        <a href="tel:${c.number}" class="btn-primary-modern btn-modern" style="padding: 8px 16px; font-size: 14px; text-decoration: none;">
+          <i class="bi bi-telephone-fill"></i> Call
+        </a>
+        <button class="btn-outline-modern btn-modern remove-contact" style="padding: 8px 12px; font-size: 14px;">
+          <i class="bi bi-trash"></i>
+        </button>
+      `;
+
+      chip.querySelector(".remove-contact").onclick = () => {
+        showConfirm(`Remove ${c.name} from emergency contacts?`, () => {
+          contacts = contacts.filter(x => x.id !== c.id);
+          localStorage.setItem(CONTACT_KEY, JSON.stringify(contacts));
+          renderContacts();
+          showAlert("Contact removed successfully!");
+        }, "Remove Contact");
+      };
+
+      wrap.appendChild(chip);
+    });
+  }
+
+  renderContacts();
+
+  $("addContactBtn").onclick = () => {
+    const name = $("contactName").value.trim();
+    const num = $("contactNumber").value.trim();
+
+    if (!name || !/^\d{6,15}$/.test(num)) return toast("Invalid contact");
+
+    contacts.push({ id: "c" + Date.now(), name, number: num });
+    localStorage.setItem(CONTACT_KEY, JSON.stringify(contacts));
+    $("contactName").value = "";
+    $("contactNumber").value = "";
+    renderContacts();
+  };
+
+  $("openMapsBtn").onclick = () =>
+    window.open("https://www.google.com/maps/search/mental+health+clinic", "_blank");
+
+  const chatToggle = $("chatToggle");
+  const chatWindow = $("chatWindow");
+  const chatMessages = $("chatMessages");
+  const chatInput = $("chatInput");
+  const chatSend = $("chatSend");
+  const chatClose = $("chatClose");
+  const chatBackdrop = $("chatBackdrop");
+
+  function openChat() {
+    chatWindow.classList.add("active");
+    chatBackdrop.classList.add("active");
+    document.body.style.overflow = window.innerWidth <= 768 ? "hidden" : "auto";
+  }
+
+  function closeChat() {
+    chatWindow.classList.remove("active");
+    chatBackdrop.classList.remove("active");
+    document.body.style.overflow = "auto";
+  }
+
+  chatToggle.onclick = () => {
+    if (chatWindow.classList.contains("active")) {
+      closeChat();
+    } else {
+      openChat();
+    }
+  };
+
+  chatClose.onclick = closeChat;
+  chatBackdrop.onclick = closeChat;
+
+  function addMessage(text, isUser = false) {
+    const msg = document.createElement("div");
+    msg.className = `chat-message ${isUser ? "user" : "ai"}`;
+    
+    // Format markdown-style text for AI messages
+    if (!isUser) {
+      // Convert **bold** to <strong>
+      text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Convert line breaks
+      text = text.replace(/\n/g, '<br>');
+      msg.innerHTML = text;
+    } else {
+      msg.textContent = text;
+    }
+    
+    chatMessages.appendChild(msg);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    addMessage(text, true);
+    chatInput.value = "";
+
+    // Show typing indicator
+    const typingMsg = document.createElement("div");
+    typingMsg.className = "chat-message ai";
+    typingMsg.innerHTML = '<i class="bi bi-three-dots" style="animation: pulse 1s infinite;"></i> Thinking...';
+    chatMessages.appendChild(typingMsg);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    setTimeout(() => {
+      chatMessages.removeChild(typingMsg);
+      const history = Object.values(store).sort((a, b) => a.date.localeCompare(b.date));
+      const response = ai.chatResponse(text, history);
+      addMessage(response, false);
+    }, 800);
+  }
+
+  chatSend.onclick = sendChatMessage;
+  chatInput.onkeypress = (e) => {
+    if (e.key === "Enter") sendChatMessage();
+  };
+
+});
+  </script>
 </body>
 </html>
