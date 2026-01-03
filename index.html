@@ -240,6 +240,58 @@
       box-shadow: 0 12px 48px var(--shadow);
     }
 
+    /* Scrollable entries list */
+    #entriesList {
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 8px;
+      scroll-behavior: smooth;
+    }
+
+    /* Custom scrollbar for entries list */
+    #entriesList::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #entriesList::-webkit-scrollbar-track {
+      background: var(--bg-light);
+      border-radius: 3px;
+    }
+
+    #entriesList::-webkit-scrollbar-thumb {
+      background: var(--primary);
+      border-radius: 3px;
+    }
+
+    #entriesList::-webkit-scrollbar-thumb:hover {
+      background: var(--primary-dark);
+    }
+
+    /* Dark theme scrollbar */
+    [data-theme="dark"] #entriesList::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme="dark"] #entriesList::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    [data-theme="dark"] #entriesList::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Mobile scrollbar adjustments */
+    @media (max-width: 768px) {
+      #entriesList {
+        max-height: 300px;
+        padding-right: 4px;
+      }
+      
+      #entriesList::-webkit-scrollbar {
+        width: 4px;
+      }
+    }
+
     .header { display: flex; justify-content: space-between; align-items: center; }
 
     .logo { display: flex; align-items: center; gap: 12px; }
@@ -1025,7 +1077,7 @@
       </div>
     </div>
   </div>
-
+  
   <div class="app">
     <div class="glass-card">
       <div class="header">
@@ -1041,9 +1093,6 @@
             <div id="todayLabel"></div>
             <div id="localTime"></div>
           </div>
-          <button id="debugPanel" class="btn-outline-modern btn-modern" title="Debug Panel">
-            <i class="bi bi-bug"></i>
-          </button>
           <button id="configureAI" class="btn-outline-modern btn-modern" title="Configure Gemini AI">
             <i class="bi bi-gear"></i>
           </button>
@@ -1385,8 +1434,51 @@ document.addEventListener("keydown", (e) => {
 class AIAssistant {
   constructor() {
     this.apiKey = null; // Will be set by user
-    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
     this.isGeminiEnabled = false;
+    
+    // Multiple Gemini models with fallback priority
+    this.geminiModels = [
+      {
+        name: 'gemini-2.5-flash',
+        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        maxTokens: 500,
+        priority: 1,
+        available: true,
+        lastError: null,
+        errorCount: 0
+      },
+      {
+        name: 'gemini-1.5-flash',
+        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+        maxTokens: 500,
+        priority: 2,
+        available: true,
+        lastError: null,
+        errorCount: 0
+      },
+      {
+        name: 'gemini-1.5-pro',
+        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+        maxTokens: 500,
+        priority: 3,
+        available: true,
+        lastError: null,
+        errorCount: 0
+      },
+      {
+        name: 'gemini-2.5-pro',
+        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+        maxTokens: 500,
+        priority: 4,
+        available: true,
+        lastError: null,
+        errorCount: 0
+      }
+    ];
+    
+    this.currentModelIndex = 0;
+    this.maxRetries = 3;
+    this.cooldownTime = 60000; // 1 minute cooldown for failed models
     
     // Fallback responses for when Gemini is not available
     this.fallbackResponses = {
@@ -1420,10 +1512,178 @@ class AIAssistant {
     this.isGeminiEnabled = !!apiKey;
     if (apiKey) {
       localStorage.setItem('gemini_api_key', apiKey);
+      // Reset all models when new API key is set
+      this.resetAllModels();
     } else {
       localStorage.removeItem('gemini_api_key');
     }
     console.log('✅ API Key set. isGeminiEnabled:', this.isGeminiEnabled);
+  }
+
+  // Reset all models to available state
+  resetAllModels() {
+    this.geminiModels.forEach(model => {
+      model.available = true;
+      model.errorCount = 0;
+      model.lastError = null;
+    });
+    this.currentModelIndex = 0;
+    console.log('🔄 All models reset to available state');
+  }
+
+  // Get the next available model
+  getNextAvailableModel() {
+    // First, try to find an available model starting from current index
+    for (let i = 0; i < this.geminiModels.length; i++) {
+      const modelIndex = (this.currentModelIndex + i) % this.geminiModels.length;
+      const model = this.geminiModels[modelIndex];
+      
+      if (model.available) {
+        this.currentModelIndex = modelIndex;
+        return model;
+      }
+    }
+    
+    // If no models are available, check if any can be reset (cooldown expired)
+    const now = Date.now();
+    for (let model of this.geminiModels) {
+      if (!model.available && model.lastError && (now - model.lastError) > this.cooldownTime) {
+        model.available = true;
+        model.errorCount = 0;
+        console.log(`🔄 Model ${model.name} cooldown expired, marking as available`);
+        return model;
+      }
+    }
+    
+    return null; // No models available
+  }
+
+  // Mark a model as failed
+  markModelFailed(modelName, error) {
+    const model = this.geminiModels.find(m => m.name === modelName);
+    if (model) {
+      model.errorCount++;
+      model.lastError = Date.now();
+      
+      // Mark as unavailable if too many errors or specific error types
+      if (model.errorCount >= this.maxRetries || 
+          error.message.includes('429') || // Rate limit
+          error.message.includes('quota') || // Quota exceeded
+          error.message.includes('RESOURCE_EXHAUSTED')) {
+        model.available = false;
+        console.log(`❌ Model ${modelName} marked as unavailable. Error count: ${model.errorCount}`);
+      }
+    }
+  }
+
+  // Get current model info for display
+  getCurrentModelInfo() {
+    const model = this.geminiModels[this.currentModelIndex];
+    return {
+      name: model?.name || 'Unknown',
+      available: model?.available || false,
+      errorCount: model?.errorCount || 0,
+      totalModels: this.geminiModels.length,
+      availableModels: this.geminiModels.filter(m => m.available).length
+    };
+  }
+
+  // Multi-model API call with fallback
+  async callGeminiAPIMultiModel(message, userHistory = []) {
+    if (!this.isGeminiEnabled || !this.apiKey) {
+      throw new Error('Gemini API not configured');
+    }
+
+    const prompt = `You are a supportive mental health assistant. Respond to this message with empathy and helpful advice in 1-2 sentences: "${message}"`;
+    
+    let lastError = null;
+    let attemptCount = 0;
+    const maxAttempts = this.geminiModels.length * 2;
+
+    while (attemptCount < maxAttempts) {
+      const model = this.getNextAvailableModel();
+      
+      if (!model) {
+        console.error('❌ No available Gemini models');
+        throw new Error('All Gemini models are currently unavailable. Please try again later.');
+      }
+
+      try {
+        console.log(`🤖 Attempting API call with model: ${model.name} (attempt ${attemptCount + 1})`);
+        
+        const requestBody = {
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: model.maxTokens
+          },
+          systemInstruction: {
+            parts: [{
+              text: "You are a supportive mental health assistant. Provide direct, helpful responses without internal reasoning or thinking steps."
+            }]
+          }
+        };
+
+        const response = await fetch(model.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        console.log(`📥 Response from ${model.name}:`, response.status, response.statusText);
+
+        if (!response.ok) {
+          const responseText = await response.text();
+          const error = new Error(`API Error ${response.status}: ${responseText}`);
+          console.error(`❌ ${model.name} failed:`, error.message);
+          
+          this.markModelFailed(model.name, error);
+          lastError = error;
+          attemptCount++;
+          
+          this.currentModelIndex = (this.currentModelIndex + 1) % this.geminiModels.length;
+          continue;
+        }
+
+        const data = await response.json();
+        
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && 
+            data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+          const responseText = data.candidates[0].content.parts[0].text.trim();
+          console.log(`✅ Success with ${model.name}:`, responseText);
+          
+          model.errorCount = Math.max(0, model.errorCount - 1);
+          
+          return responseText;
+        } else {
+          const error = new Error('Invalid response structure from Gemini API');
+          console.error(`❌ Invalid response from ${model.name}:`, data);
+          this.markModelFailed(model.name, error);
+          lastError = error;
+          attemptCount++;
+          continue;
+        }
+        
+      } catch (error) {
+        console.error(`💥 Network error with ${model.name}:`, error);
+        this.markModelFailed(model.name, error);
+        lastError = error;
+        attemptCount++;
+        
+        this.currentModelIndex = (this.currentModelIndex + 1) % this.geminiModels.length;
+        continue;
+      }
+    }
+
+    console.error('💥 All Gemini models failed');
+    throw lastError || new Error('All Gemini models are currently unavailable');
   }
 
   // Load API key from storage
@@ -1463,8 +1723,9 @@ User context:`;
     return moods[moodId] || 'Unknown';
   }
 
-  // Call Gemini API with simplified request
+  // Call Gemini API (now uses multi-model system)
   async callGeminiAPI(message, userHistory = []) {
+    return await this.callGeminiAPIMultiModel
     if (!this.isGeminiEnabled) {
       throw new Error('Gemini API not configured');
     }
@@ -1532,7 +1793,7 @@ User context:`;
     console.log('🔧 Gemini enabled:', this.isGeminiEnabled);
     console.log('🔑 API key exists:', !!this.apiKey);
     console.log('🔑 API key length:', this.apiKey ? this.apiKey.length : 0);
-    console.log('🌐 Base URL:', this.baseURL);
+    console.log('🌐 Current model:', this.getCurrentModelInfo().name);
     
     // Try Gemini first if available
     if (this.isGeminiEnabled && this.apiKey) {
@@ -1947,296 +2208,6 @@ document.addEventListener("DOMContentLoaded", () => {
     
     console.log('🔄 AI Status Updated:', ai.isGeminiEnabled ? 'Gemini Enabled' : 'Fallback Mode');
   }
-
-  // Debug Panel
-  $("debugPanel").addEventListener("click", () => {
-    showModal('Debug Panel', `
-      <div style="font-family: monospace; font-size: 12px;">
-        <h4>AI Status</h4>
-        <p><strong>Gemini Enabled:</strong> ${ai.isGeminiEnabled}</p>
-        <p><strong>API Key Set:</strong> ${!!ai.apiKey}</p>
-        <p><strong>API Key Length:</strong> ${ai.apiKey ? ai.apiKey.length : 0}</p>
-        <p><strong>Base URL:</strong> ${ai.baseURL}</p>
-        <p><strong>Current Model:</strong> ${ai.baseURL.includes('gemini-2.5-flash') ? 'gemini-2.5-flash' : ai.baseURL.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : ai.baseURL.includes('gemini-1.5-pro') ? 'gemini-1.5-pro' : ai.baseURL.includes('gemini-1.5-flash') ? 'gemini-1.5-flash' : 'Unknown'}</p>
-        
-        <h4>Quick Debug Test</h4>
-        <button id="quickDebugBtn" style="padding: 8px 16px; background: var(--warning); color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 10px;">
-          Debug Current State
-        </button>
-        <button id="populateDataBtn" style="padding: 8px 16px; background: var(--success); color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 10px; margin-left: 10px;">
-          Add Sample Data (15 days)
-        </button>
-        
-        <h4>Try Different Models</h4>
-        <button id="testGemini25Flash" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
-          Test gemini-2.5-flash
-        </button>
-        <button id="testGemini25Pro" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
-          Test gemini-2.5-pro
-        </button>
-        <button id="testGemini15Pro" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
-          Test gemini-1.5-pro
-        </button>
-        <button id="testGemini15Flash" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
-          Test gemini-1.5-flash
-        </button>
-        
-        <h4>Test Simple API Call</h4>
-        <button id="simpleTestBtn" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px;">
-          Test "Hello" Message
-        </button>
-        <button id="listModelsBtn" style="padding: 8px 16px; background: var(--secondary); color: white; border: none; border-radius: 6px; cursor: pointer;">
-          List Available Models
-        </button>
-        <div id="testResult" style="margin-top: 10px; padding: 10px; background: var(--bg-light); border-radius: 6px; min-height: 50px;">
-          Click test button to see result...
-        </div>
-        
-        <h4>Browser Info</h4>
-        <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
-        <p><strong>Protocol:</strong> ${window.location.protocol}</p>
-        <p><strong>Host:</strong> ${window.location.host}</p>
-      </div>
-    `, [
-      { text: '<i class="bi bi-x"></i> Close', primary: true }
-    ]);
-
-    // Add test functionality
-    setTimeout(() => {
-      const testBtn = $('simpleTestBtn');
-      const listModelsBtn = $('listModelsBtn');
-      const quickDebugBtn = $('quickDebugBtn');
-      const populateDataBtn = $('populateDataBtn');
-      const resultDiv = $('testResult');
-      
-      if (populateDataBtn && resultDiv) {
-        populateDataBtn.onclick = async () => {
-          populateDataBtn.textContent = 'Adding Data...';
-          populateDataBtn.disabled = true;
-          
-          try {
-            // Add sample data
-            const sampleData = populateSampleData();
-            
-            // Merge with existing data (don't overwrite existing entries)
-            Object.keys(sampleData).forEach(dateKey => {
-              if (!store[dateKey]) {
-                store[dateKey] = sampleData[dateKey];
-              }
-            });
-            
-            localStorage.setItem(STORE_KEY, JSON.stringify(store));
-            
-            resultDiv.innerHTML = `
-              <strong>✅ Sample Data Added!</strong><br>
-              <strong>Added ${Object.keys(sampleData).length} days of sample data</strong><br>
-              <strong>Total entries:</strong> ${Object.keys(store).length}<br>
-              <br>
-              <em>Refresh the page to see the data in your dashboard and charts.</em>
-            `;
-            
-            // Refresh the UI
-            setTimeout(() => {
-              location.reload();
-            }, 2000);
-            
-          } catch (error) {
-            resultDiv.innerHTML = `
-              <strong>❌ Error adding sample data:</strong> ${error.message}
-            `;
-          }
-          
-          populateDataBtn.textContent = 'Add Sample Data (15 days)';
-          populateDataBtn.disabled = false;
-        };
-      }
-      
-      if (quickDebugBtn && resultDiv) {
-        quickDebugBtn.onclick = async () => {
-          quickDebugBtn.textContent = 'Debugging...';
-          quickDebugBtn.disabled = true;
-          
-          resultDiv.innerHTML = `
-            <strong>🔍 Current AI State:</strong><br>
-            <strong>isGeminiEnabled:</strong> ${ai.isGeminiEnabled}<br>
-            <strong>API Key exists:</strong> ${!!ai.apiKey}<br>
-            <strong>API Key length:</strong> ${ai.apiKey ? ai.apiKey.length : 0}<br>
-            <strong>Base URL:</strong> ${ai.baseURL}<br>
-            <strong>localStorage key:</strong> ${localStorage.getItem('gemini_api_key') ? 'Found' : 'Not found'}<br>
-            <br>
-            <strong>🧪 Testing simple chat response...</strong><br>
-          `;
-          
-          try {
-            const testMessage = "Hello, this is a test";
-            const response = await ai.chatResponse(testMessage, []);
-            resultDiv.innerHTML += `
-              <strong>✅ Chat Response:</strong><br>
-              <pre style="white-space: pre-wrap; font-size: 11px; background: var(--bg-light); padding: 8px; border-radius: 4px;">${response}</pre>
-            `;
-          } catch (error) {
-            resultDiv.innerHTML += `
-              <strong>❌ Chat Error:</strong> ${error.message}<br>
-            `;
-          }
-          
-          quickDebugBtn.textContent = 'Debug Current State';
-          quickDebugBtn.disabled = false;
-        };
-      }
-      
-      if (testBtn && resultDiv) {
-        testBtn.onclick = async () => {
-          testBtn.textContent = 'Testing...';
-          testBtn.disabled = true;
-          resultDiv.innerHTML = 'Making API call...';
-          
-          try {
-            // Direct fetch test
-            const testResponse = await fetch(ai.baseURL, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': ai.apiKey
-              },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [{
-                    text: "Say hello"
-                  }]
-                }],
-                generationConfig: {
-                  temperature: 0.7,
-                  maxOutputTokens: 500
-                }
-              })
-            });
-            
-            const responseText = await testResponse.text();
-            
-            resultDiv.innerHTML = `
-              <strong>Status:</strong> ${testResponse.status}<br>
-              <strong>Response:</strong><br>
-              <pre style="white-space: pre-wrap; font-size: 10px;">${responseText}</pre>
-            `;
-            
-          } catch (error) {
-            resultDiv.innerHTML = `
-              <strong>Error:</strong> ${error.message}<br>
-              <strong>Stack:</strong><br>
-              <pre style="white-space: pre-wrap; font-size: 10px;">${error.stack}</pre>
-            `;
-          }
-          
-          testBtn.textContent = 'Test "Hello" Message';
-          testBtn.disabled = false;
-        };
-      }
-
-      if (listModelsBtn && resultDiv) {
-        listModelsBtn.onclick = async () => {
-          listModelsBtn.textContent = 'Loading...';
-          listModelsBtn.disabled = true;
-          resultDiv.innerHTML = 'Fetching available models...';
-          
-          try {
-            // List available models using v1beta API
-            const modelsResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
-              headers: {
-                'x-goog-api-key': ai.apiKey
-              }
-            });
-            const modelsText = await modelsResponse.text();
-            
-            resultDiv.innerHTML = `
-              <strong>Available Models (v1beta API):</strong><br>
-              <pre style="white-space: pre-wrap; font-size: 10px;">${modelsText}</pre>
-            `;
-            
-          } catch (error) {
-            resultDiv.innerHTML = `
-              <strong>Error:</strong> ${error.message}
-            `;
-          }
-          
-          listModelsBtn.textContent = 'List Available Models';
-          listModelsBtn.disabled = false;
-        };
-      }
-
-      // Add model testing functionality
-      const modelTests = [
-        { id: 'testGemini25Flash', model: 'gemini-2.5-flash' },
-        { id: 'testGemini25Pro', model: 'gemini-2.5-pro' },
-        { id: 'testGemini15Pro', model: 'gemini-1.5-pro' },
-        { id: 'testGemini15Flash', model: 'gemini-1.5-flash' }
-      ];
-
-      modelTests.forEach(({ id, model }) => {
-        const btn = $(id);
-        if (btn) {
-          btn.onclick = async () => {
-            const originalText = btn.textContent;
-            btn.textContent = 'Testing...';
-            btn.disabled = true;
-            resultDiv.innerHTML = `Testing ${model}...`;
-            
-            try {
-              const testURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-              const response = await fetch(testURL, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-goog-api-key': ai.apiKey
-                },
-                body: JSON.stringify({
-                  contents: [{
-                    parts: [{
-                      text: "Say hello in one sentence"
-                    }]
-                  }],
-                  generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 500
-                  }
-                })
-              });
-              
-              const responseText = await response.text();
-              
-              if (response.ok) {
-                const data = JSON.parse(responseText);
-                const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response text found';
-                resultDiv.innerHTML = `
-                  <strong>✅ ${model} SUCCESS</strong><br>
-                  <strong>Response:</strong> ${reply}<br>
-                  <button onclick="ai.baseURL='${testURL}'; updateAIStatus(); showAlert('Model updated to ${model}', 'Model Changed');" style="margin-top: 8px; padding: 4px 8px; background: var(--success); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
-                    Use This Model
-                  </button>
-                `;
-              } else {
-                resultDiv.innerHTML = `
-                  <strong>❌ ${model} FAILED</strong><br>
-                  <strong>Status:</strong> ${response.status}<br>
-                  <strong>Error:</strong><br>
-                  <pre style="white-space: pre-wrap; font-size: 10px;">${responseText}</pre>
-                `;
-              }
-              
-            } catch (error) {
-              resultDiv.innerHTML = `
-                <strong>❌ ${model} ERROR</strong><br>
-                <strong>Error:</strong> ${error.message}
-              `;
-            }
-            
-            btn.textContent = originalText;
-            btn.disabled = false;
-          };
-        }
-      });
-    }, 100);
-  });
 
   // Configure AI button
   $("configureAI").addEventListener("click", () => {
