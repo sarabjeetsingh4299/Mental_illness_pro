@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <title>Cool-Mind AI Tracker</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1040,6 +1041,12 @@
             <div id="todayLabel"></div>
             <div id="localTime"></div>
           </div>
+          <button id="debugPanel" class="btn-outline-modern btn-modern" title="Debug Panel">
+            <i class="bi bi-bug"></i>
+          </button>
+          <button id="configureAI" class="btn-outline-modern btn-modern" title="Configure Gemini AI">
+            <i class="bi bi-gear"></i>
+          </button>
           <button id="themeToggle" class="btn-outline-modern btn-modern">
             <i id="themeIcon" class="bi bi-moon"></i>
           </button>
@@ -1277,6 +1284,9 @@
       <div class="chat-header">
         <div>
           <i class="bi bi-robot"></i> AI Mental Health Assistant
+          <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;" id="aiStatus">
+            Fallback Mode
+          </div>
         </div>
         <button class="chat-close" id="chatClose">
           <i class="bi bi-x"></i>
@@ -1285,6 +1295,9 @@
       <div class="chat-messages" id="chatMessages">
         <div class="chat-message ai">
           Hi! I'm your AI mental health assistant. How can I support you today?
+          <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+            Status: <span id="chatStatus">Loading...</span>
+          </div>
         </div>
       </div>
       <div class="chat-input">
@@ -1371,31 +1384,26 @@ document.addEventListener("keydown", (e) => {
 
 class AIAssistant {
   constructor() {
-    this.responses = {
+    this.apiKey = null; // Will be set by user
+    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    this.isGeminiEnabled = false;
+    
+    // Fallback responses for when Gemini is not available
+    this.fallbackResponses = {
       greeting: [
         "Hello! I'm here to support your mental wellness journey. How are you feeling today?",
         "Hi there! I'm your AI mental health companion. What's on your mind?",
         "Welcome! I'm here to listen and help. How can I support you today?"
       ],
       anxiety: [
-        "I understand anxiety can be overwhelming. Try the 4-7-8 breathing technique: breathe in for 4 seconds, hold for 7, exhale for 8.",
-        "Anxiety is tough, but you're not alone. Consider grounding yourself by naming 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.",
-        "When anxiety strikes, remember: this feeling is temporary. Try progressive muscle relaxation or a short walk."
+        "I understand anxiety can be overwhelming. Try the **4-7-8 breathing technique**: breathe in for 4 seconds, hold for 7, exhale for 8.",
+        "Anxiety is tough, but you're not alone. Try the **5-4-3-2-1 grounding technique**: Name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, and 1 you taste.",
+        "When anxiety strikes, remember: **this feeling is temporary**. Try progressive muscle relaxation or a short walk."
       ],
       stress: [
-        "Stress management is key. Have you tried breaking tasks into smaller, manageable chunks?",
-        "High stress levels detected. Consider taking a 5-minute break to stretch or practice mindfulness.",
-        "Remember to be kind to yourself. Stress is normal, but chronic stress needs attention. Consider talking to a professional."
-      ],
-      sleep: [
-        "Good sleep is crucial for mental health. Try maintaining a consistent sleep schedule and avoiding screens before bed.",
-        "Sleep issues can affect mood significantly. Consider creating a relaxing bedtime routine.",
-        "Aim for 7-9 hours of sleep. If you're struggling, avoid caffeine after 2 PM and keep your bedroom cool and dark."
-      ],
-      positive: [
-        "That's wonderful! Keep up the great work. What's contributing to your positive mood?",
-        "I'm so glad you're feeling good! This is a great time to reflect on what's working well.",
-        "Excellent! Remember this feeling and what led to it. You're doing great!"
+        "Stress management is key. Try the **Pomodoro Technique**: Work for 25 minutes, then take a 5-minute break.",
+        "When overwhelmed, **break tasks into tiny steps**. Instead of 'finish project', try 'write first paragraph'.",
+        "Remember to be kind to yourself. **You're doing your best**, and that's enough."
       ],
       support: [
         "Remember, seeking help is a sign of strength, not weakness.",
@@ -1403,6 +1411,204 @@ class AIAssistant {
         "Every day is a new opportunity. Be patient and kind with yourself."
       ]
     };
+  }
+
+  // Set Gemini API key
+  setApiKey(apiKey) {
+    console.log('🔧 Setting API key:', apiKey ? `${apiKey.length} characters` : 'null/empty');
+    this.apiKey = apiKey;
+    this.isGeminiEnabled = !!apiKey;
+    if (apiKey) {
+      localStorage.setItem('gemini_api_key', apiKey);
+    } else {
+      localStorage.removeItem('gemini_api_key');
+    }
+    console.log('✅ API Key set. isGeminiEnabled:', this.isGeminiEnabled);
+  }
+
+  // Load API key from storage
+  loadApiKey() {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    console.log('🔄 Loading API key from localStorage...');
+    console.log('🔑 Found saved key:', savedKey ? `Yes (${savedKey.length} chars)` : 'No');
+    if (savedKey) {
+      this.setApiKey(savedKey);
+      console.log('✅ API key loaded and set');
+    } else {
+      console.log('⚠️ No API key found in localStorage');
+    }
+  }
+
+  // Generate system prompt for mental health context
+  generateSystemPrompt(userHistory = []) {
+    const recentEntry = userHistory.length > 0 ? userHistory[userHistory.length - 1] : null;
+    
+    let prompt = `You are a compassionate AI mental health assistant. Provide supportive, empathetic responses about mental health in 2-3 sentences. Offer evidence-based coping strategies. Encourage professional help when appropriate. NEVER provide medical diagnoses. Be encouraging and non-judgmental.
+
+SAFETY: If someone mentions self-harm or suicide, provide crisis resources immediately.
+
+User context:`;
+
+    if (recentEntry) {
+      prompt += ` Recent mood: ${this.getMoodLabel(recentEntry.mood)}, Anxiety: ${recentEntry.anxiety}/10, Stress: ${recentEntry.stress}/10`;
+    } else {
+      prompt += ` New user starting mental wellness tracking`;
+    }
+
+    return prompt;
+  }
+
+  getMoodLabel(moodId) {
+    const moods = ['Very low', 'Low', 'Okay', 'Good', 'Great'];
+    return moods[moodId] || 'Unknown';
+  }
+
+  // Call Gemini API with simplified request
+  async callGeminiAPI(message, userHistory = []) {
+    if (!this.isGeminiEnabled) {
+      throw new Error('Gemini API not configured');
+    }
+
+    // Simple, direct prompt for mental health support
+    const prompt = `You are a supportive mental health assistant. Respond to this message with empathy and helpful advice in 1-2 sentences: "${message}"`;
+
+    try {
+      console.log('🤖 Calling Gemini API...');
+      console.log('� API Ktey exists:', !!this.apiKey);
+      console.log('🌐 URL:', this.baseURL);
+      
+      const requestBody = {
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000
+        }
+      };
+
+      console.log('📤 Making request...');
+      
+      const response = await fetch(this.baseURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('📥 Response received:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', errorText);
+        throw new Error(`API Error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('📊 Full API Response:', data);
+      
+      if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+        const responseText = data.candidates[0].content.parts[0].text.trim();
+        console.log('✅ Gemini Response:', responseText);
+        return responseText;
+      } else {
+        console.error('❌ Unexpected response structure:', data);
+        throw new Error('Invalid response from Gemini API');
+      }
+      
+    } catch (error) {
+      console.error('💥 Gemini API Error:', error);
+      throw error;
+    }
+  }
+
+  // Main chat response method
+  async chatResponse(message, userHistory = []) {
+    console.log('🎯 Chat request:', message);
+    console.log('🔧 Gemini enabled:', this.isGeminiEnabled);
+    console.log('🔑 API key exists:', !!this.apiKey);
+    console.log('🔑 API key length:', this.apiKey ? this.apiKey.length : 0);
+    console.log('🌐 Base URL:', this.baseURL);
+    
+    // Try Gemini first if available
+    if (this.isGeminiEnabled && this.apiKey) {
+      try {
+        console.log('🚀 Attempting Gemini API call...');
+        const response = await this.callGeminiAPI(message, userHistory);
+        console.log('✅ Using Gemini response:', response);
+        
+        // Clean up markdown formatting
+        const cleanResponse = response.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1');
+        return cleanResponse;
+      } catch (error) {
+        console.error('❌ Gemini failed, using fallback:', error.message);
+        console.error('❌ Full error:', error);
+        // Fall through to local responses
+      }
+    } else {
+      console.log('⚠️ Gemini not enabled or no API key, using fallback');
+      console.log('⚠️ isGeminiEnabled:', this.isGeminiEnabled);
+      console.log('⚠️ apiKey exists:', !!this.apiKey);
+    }
+
+    // Fallback to local pattern-based responses
+    console.log('🔄 Using fallback responses');
+    const fallbackResponse = this.getLocalResponse(message, userHistory);
+    return fallbackResponse;
+  }
+
+  // Local pattern-based responses (fallback)
+  getLocalResponse(message, userHistory = []) {
+    const lowerMsg = message.toLowerCase();
+    const recentEntry = userHistory.length > 0 ? userHistory[userHistory.length - 1] : null;
+    
+    // Crisis detection
+    if (lowerMsg.match(/\b(suicide|kill myself|end it all|want to die|hurt myself|self harm)\b/)) {
+      return "🚨 **I'm very concerned about you.** Please reach out for immediate help:\n\n**988** - Suicide & Crisis Lifeline (US)\n**Crisis Text Line**: Text HOME to 741741\n**International**: findahelpline.com\n\nYou matter, and there are people who want to help. Please don't face this alone.";
+    }
+
+    // Greetings with personalization
+    if (lowerMsg.match(/\b(hello|hi|hey|good morning|good evening|greetings)\b/)) {
+      const greetings = [
+        "Hello! I'm here to support your mental wellness journey. How are you feeling today?",
+        "Hi there! I'm your AI mental health companion. What's on your mind?",
+        "Welcome back! I'm here to listen and help. How can I support you today?",
+        recentEntry ? `Hi! I see you've been tracking for ${userHistory.length} days. How are things going?` : "Hello! Ready to talk about how you're feeling?",
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
+    }
+    
+    // Anxiety-related responses
+    if (lowerMsg.match(/\b(anxious|anxiety|panic|worried|nervous|fear|scared)\b/)) {
+      const responses = this.fallbackResponses.anxiety;
+      let response = responses[Math.floor(Math.random() * responses.length)];
+      
+      if (recentEntry && recentEntry.anxiety > 7) {
+        response += "\n\nI noticed your anxiety has been high lately. Consider talking to a mental health professional for additional support.";
+      }
+      
+      return response;
+    }
+    
+    // Stress management
+    if (lowerMsg.match(/\b(stress|stressed|overwhelm|overwhelmed|pressure|burnout)\b/)) {
+      const responses = this.fallbackResponses.stress;
+      let response = responses[Math.floor(Math.random() * responses.length)];
+      
+      if (recentEntry && recentEntry.stress > 7) {
+        response += "\n\nYour stress levels have been consistently high. This might be a good time to evaluate what you can delegate or say no to.";
+      }
+      
+      return response;
+    }
+    
+    // Default supportive response
+    const supportResponses = this.fallbackResponses.support;
+    return supportResponses[Math.floor(Math.random() * supportResponses.length)];
   }
 
   analyzeEntry(entry) {
@@ -1478,12 +1684,21 @@ class AIAssistant {
   }
 
   computeScore(entry) {
-    const moodS = entry.mood / 4;
-    const prodS = entry.prod / 10;
-    const focusS = entry.focus / 10;
-    const energyS = entry.energy / 10;
-    const sleepS = Math.max(0, 1 - Math.abs(7 - entry.sleep) / 7);
-    const negative = (entry.stress + entry.anxiety) / 20;
+    // Ensure all required properties exist and are numbers
+    const mood = Number(entry.mood) || 0;
+    const prod = Number(entry.prod) || 0;
+    const focus = Number(entry.focus) || 0;
+    const energy = Number(entry.energy) || 0;
+    const sleep = Number(entry.sleep) || 7;
+    const stress = Number(entry.stress) || 0;
+    const anxiety = Number(entry.anxiety) || 0;
+
+    const moodS = mood / 4;
+    const prodS = prod / 10;
+    const focusS = focus / 10;
+    const energyS = energy / 10;
+    const sleepS = Math.max(0, 1 - Math.abs(7 - sleep) / 7);
+    const negative = (stress + anxiety) / 20;
 
     const weighted =
       moodS * 0.22 +
@@ -1492,7 +1707,10 @@ class AIAssistant {
       energyS * 0.18 +
       sleepS * 0.20;
 
-    return Math.max(0, Math.round(weighted * (1 - negative) * 100));
+    const score = Math.max(0, Math.round(weighted * (1 - negative) * 100));
+    
+    // Ensure we never return NaN
+    return isNaN(score) ? 0 : score;
   }
 
   analyzeSentiment(text) {
@@ -1699,6 +1917,391 @@ const ai = new AIAssistant();
 document.addEventListener("DOMContentLoaded", () => {
   const $ = id => document.getElementById(id);
 
+  // Initialize AI
+  ai.loadApiKey();
+  updateAIStatus();
+  
+  // Show current status
+  setTimeout(() => {
+    console.log('🚀 Cool-Mind Tracker Loaded');
+    console.log('🤖 AI Status:', ai.isGeminiEnabled ? 'Gemini Enabled' : 'Fallback Mode');
+    console.log('🔑 API Key:', ai.apiKey ? 'Set (' + ai.apiKey.length + ' chars)' : 'Not Set');
+    
+    // Show status in chat
+    updateAIStatus();
+  }, 1000);
+
+  function updateAIStatus() {
+    const statusElement = $("aiStatus");
+    const chatStatusElement = $("chatStatus");
+    
+    if (statusElement) {
+      statusElement.textContent = ai.isGeminiEnabled ? 'Powered by Gemini AI' : 'Fallback Mode';
+      statusElement.style.color = ai.isGeminiEnabled ? '#4ade80' : '#fbbf24';
+    }
+    
+    if (chatStatusElement) {
+      chatStatusElement.textContent = ai.isGeminiEnabled ? 'Gemini AI Ready' : 'Fallback Mode';
+      chatStatusElement.style.color = ai.isGeminiEnabled ? '#4ade80' : '#fbbf24';
+    }
+    
+    console.log('🔄 AI Status Updated:', ai.isGeminiEnabled ? 'Gemini Enabled' : 'Fallback Mode');
+  }
+
+  // Debug Panel
+  $("debugPanel").addEventListener("click", () => {
+    showModal('Debug Panel', `
+      <div style="font-family: monospace; font-size: 12px;">
+        <h4>AI Status</h4>
+        <p><strong>Gemini Enabled:</strong> ${ai.isGeminiEnabled}</p>
+        <p><strong>API Key Set:</strong> ${!!ai.apiKey}</p>
+        <p><strong>API Key Length:</strong> ${ai.apiKey ? ai.apiKey.length : 0}</p>
+        <p><strong>Base URL:</strong> ${ai.baseURL}</p>
+        <p><strong>Current Model:</strong> ${ai.baseURL.includes('gemini-2.5-flash') ? 'gemini-2.5-flash' : ai.baseURL.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : ai.baseURL.includes('gemini-1.5-pro') ? 'gemini-1.5-pro' : ai.baseURL.includes('gemini-1.5-flash') ? 'gemini-1.5-flash' : 'Unknown'}</p>
+        
+        <h4>Quick Debug Test</h4>
+        <button id="quickDebugBtn" style="padding: 8px 16px; background: var(--warning); color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 10px;">
+          Debug Current State
+        </button>
+        <button id="populateDataBtn" style="padding: 8px 16px; background: var(--success); color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 10px; margin-left: 10px;">
+          Add Sample Data (15 days)
+        </button>
+        
+        <h4>Try Different Models</h4>
+        <button id="testGemini25Flash" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
+          Test gemini-2.5-flash
+        </button>
+        <button id="testGemini25Pro" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
+          Test gemini-2.5-pro
+        </button>
+        <button id="testGemini15Pro" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
+          Test gemini-1.5-pro
+        </button>
+        <button id="testGemini15Flash" style="padding: 6px 12px; background: var(--info); color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 11px;">
+          Test gemini-1.5-flash
+        </button>
+        
+        <h4>Test Simple API Call</h4>
+        <button id="simpleTestBtn" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px;">
+          Test "Hello" Message
+        </button>
+        <button id="listModelsBtn" style="padding: 8px 16px; background: var(--secondary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+          List Available Models
+        </button>
+        <div id="testResult" style="margin-top: 10px; padding: 10px; background: var(--bg-light); border-radius: 6px; min-height: 50px;">
+          Click test button to see result...
+        </div>
+        
+        <h4>Browser Info</h4>
+        <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+        <p><strong>Protocol:</strong> ${window.location.protocol}</p>
+        <p><strong>Host:</strong> ${window.location.host}</p>
+      </div>
+    `, [
+      { text: '<i class="bi bi-x"></i> Close', primary: true }
+    ]);
+
+    // Add test functionality
+    setTimeout(() => {
+      const testBtn = $('simpleTestBtn');
+      const listModelsBtn = $('listModelsBtn');
+      const quickDebugBtn = $('quickDebugBtn');
+      const populateDataBtn = $('populateDataBtn');
+      const resultDiv = $('testResult');
+      
+      if (populateDataBtn && resultDiv) {
+        populateDataBtn.onclick = async () => {
+          populateDataBtn.textContent = 'Adding Data...';
+          populateDataBtn.disabled = true;
+          
+          try {
+            // Add sample data
+            const sampleData = populateSampleData();
+            
+            // Merge with existing data (don't overwrite existing entries)
+            Object.keys(sampleData).forEach(dateKey => {
+              if (!store[dateKey]) {
+                store[dateKey] = sampleData[dateKey];
+              }
+            });
+            
+            localStorage.setItem(STORE_KEY, JSON.stringify(store));
+            
+            resultDiv.innerHTML = `
+              <strong>✅ Sample Data Added!</strong><br>
+              <strong>Added ${Object.keys(sampleData).length} days of sample data</strong><br>
+              <strong>Total entries:</strong> ${Object.keys(store).length}<br>
+              <br>
+              <em>Refresh the page to see the data in your dashboard and charts.</em>
+            `;
+            
+            // Refresh the UI
+            setTimeout(() => {
+              location.reload();
+            }, 2000);
+            
+          } catch (error) {
+            resultDiv.innerHTML = `
+              <strong>❌ Error adding sample data:</strong> ${error.message}
+            `;
+          }
+          
+          populateDataBtn.textContent = 'Add Sample Data (15 days)';
+          populateDataBtn.disabled = false;
+        };
+      }
+      
+      if (quickDebugBtn && resultDiv) {
+        quickDebugBtn.onclick = async () => {
+          quickDebugBtn.textContent = 'Debugging...';
+          quickDebugBtn.disabled = true;
+          
+          resultDiv.innerHTML = `
+            <strong>🔍 Current AI State:</strong><br>
+            <strong>isGeminiEnabled:</strong> ${ai.isGeminiEnabled}<br>
+            <strong>API Key exists:</strong> ${!!ai.apiKey}<br>
+            <strong>API Key length:</strong> ${ai.apiKey ? ai.apiKey.length : 0}<br>
+            <strong>Base URL:</strong> ${ai.baseURL}<br>
+            <strong>localStorage key:</strong> ${localStorage.getItem('gemini_api_key') ? 'Found' : 'Not found'}<br>
+            <br>
+            <strong>🧪 Testing simple chat response...</strong><br>
+          `;
+          
+          try {
+            const testMessage = "Hello, this is a test";
+            const response = await ai.chatResponse(testMessage, []);
+            resultDiv.innerHTML += `
+              <strong>✅ Chat Response:</strong><br>
+              <pre style="white-space: pre-wrap; font-size: 11px; background: var(--bg-light); padding: 8px; border-radius: 4px;">${response}</pre>
+            `;
+          } catch (error) {
+            resultDiv.innerHTML += `
+              <strong>❌ Chat Error:</strong> ${error.message}<br>
+            `;
+          }
+          
+          quickDebugBtn.textContent = 'Debug Current State';
+          quickDebugBtn.disabled = false;
+        };
+      }
+      
+      if (testBtn && resultDiv) {
+        testBtn.onclick = async () => {
+          testBtn.textContent = 'Testing...';
+          testBtn.disabled = true;
+          resultDiv.innerHTML = 'Making API call...';
+          
+          try {
+            // Direct fetch test
+            const testResponse = await fetch(ai.baseURL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': ai.apiKey
+              },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: "Say hello"
+                  }]
+                }],
+                generationConfig: {
+                  temperature: 0.7,
+                  maxOutputTokens: 500
+                }
+              })
+            });
+            
+            const responseText = await testResponse.text();
+            
+            resultDiv.innerHTML = `
+              <strong>Status:</strong> ${testResponse.status}<br>
+              <strong>Response:</strong><br>
+              <pre style="white-space: pre-wrap; font-size: 10px;">${responseText}</pre>
+            `;
+            
+          } catch (error) {
+            resultDiv.innerHTML = `
+              <strong>Error:</strong> ${error.message}<br>
+              <strong>Stack:</strong><br>
+              <pre style="white-space: pre-wrap; font-size: 10px;">${error.stack}</pre>
+            `;
+          }
+          
+          testBtn.textContent = 'Test "Hello" Message';
+          testBtn.disabled = false;
+        };
+      }
+
+      if (listModelsBtn && resultDiv) {
+        listModelsBtn.onclick = async () => {
+          listModelsBtn.textContent = 'Loading...';
+          listModelsBtn.disabled = true;
+          resultDiv.innerHTML = 'Fetching available models...';
+          
+          try {
+            // List available models using v1beta API
+            const modelsResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+              headers: {
+                'x-goog-api-key': ai.apiKey
+              }
+            });
+            const modelsText = await modelsResponse.text();
+            
+            resultDiv.innerHTML = `
+              <strong>Available Models (v1beta API):</strong><br>
+              <pre style="white-space: pre-wrap; font-size: 10px;">${modelsText}</pre>
+            `;
+            
+          } catch (error) {
+            resultDiv.innerHTML = `
+              <strong>Error:</strong> ${error.message}
+            `;
+          }
+          
+          listModelsBtn.textContent = 'List Available Models';
+          listModelsBtn.disabled = false;
+        };
+      }
+
+      // Add model testing functionality
+      const modelTests = [
+        { id: 'testGemini25Flash', model: 'gemini-2.5-flash' },
+        { id: 'testGemini25Pro', model: 'gemini-2.5-pro' },
+        { id: 'testGemini15Pro', model: 'gemini-1.5-pro' },
+        { id: 'testGemini15Flash', model: 'gemini-1.5-flash' }
+      ];
+
+      modelTests.forEach(({ id, model }) => {
+        const btn = $(id);
+        if (btn) {
+          btn.onclick = async () => {
+            const originalText = btn.textContent;
+            btn.textContent = 'Testing...';
+            btn.disabled = true;
+            resultDiv.innerHTML = `Testing ${model}...`;
+            
+            try {
+              const testURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+              const response = await fetch(testURL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': ai.apiKey
+                },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{
+                      text: "Say hello in one sentence"
+                    }]
+                  }],
+                  generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 500
+                  }
+                })
+              });
+              
+              const responseText = await response.text();
+              
+              if (response.ok) {
+                const data = JSON.parse(responseText);
+                const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response text found';
+                resultDiv.innerHTML = `
+                  <strong>✅ ${model} SUCCESS</strong><br>
+                  <strong>Response:</strong> ${reply}<br>
+                  <button onclick="ai.baseURL='${testURL}'; updateAIStatus(); showAlert('Model updated to ${model}', 'Model Changed');" style="margin-top: 8px; padding: 4px 8px; background: var(--success); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                    Use This Model
+                  </button>
+                `;
+              } else {
+                resultDiv.innerHTML = `
+                  <strong>❌ ${model} FAILED</strong><br>
+                  <strong>Status:</strong> ${response.status}<br>
+                  <strong>Error:</strong><br>
+                  <pre style="white-space: pre-wrap; font-size: 10px;">${responseText}</pre>
+                `;
+              }
+              
+            } catch (error) {
+              resultDiv.innerHTML = `
+                <strong>❌ ${model} ERROR</strong><br>
+                <strong>Error:</strong> ${error.message}
+              `;
+            }
+            
+            btn.textContent = originalText;
+            btn.disabled = false;
+          };
+        }
+      });
+    }, 100);
+  });
+
+  // Configure AI button
+  $("configureAI").addEventListener("click", () => {
+    const currentKey = ai.apiKey || '';
+    const message = ai.isGeminiEnabled ? 
+      'Gemini AI is currently enabled. Enter a new API key or leave blank to disable:' :
+      'Configure Gemini AI for enhanced responses. Get your free API key from Google AI Studio:';
+    
+    showModal('Configure Gemini AI', `
+      <div style="margin-bottom: 16px;">
+        <p>${message}</p>
+        ${!ai.isGeminiEnabled ? '<p><a href="https://makersuite.google.com/app/apikey" target="_blank" style="color: var(--primary);">Get API Key from Google AI Studio →</a></p>' : ''}
+      </div>
+      <input type="password" id="apiKeyInput" class="modal-input" placeholder="Enter Gemini API Key" value="${currentKey}">
+      <div style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
+        <i class="bi bi-shield-check"></i> Your API key is stored locally and never shared.
+      </div>
+      <div style="margin-top: 8px; padding: 12px; background: var(--bg-light); border-radius: 8px; font-size: 13px;">
+        <strong>Status:</strong> ${ai.isGeminiEnabled ? 
+          '<span style="color: var(--success);">✅ Gemini AI Enabled</span>' : 
+          '<span style="color: var(--warning);">⚠️ Using Fallback Responses</span>'}
+        ${ai.isGeminiEnabled ? '<br><button id="testApiBtn" style="margin-top: 8px; padding: 4px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">Test API Connection</button>' : ''}
+      </div>
+    `, [
+      { text: '<i class="bi bi-x"></i> Cancel', primary: false },
+      { 
+        text: '<i class="bi bi-check"></i> Save', 
+        primary: true, 
+        onClick: () => {
+          const newKey = $('apiKeyInput').value.trim();
+          if (newKey) {
+            ai.setApiKey(newKey);
+            updateAIStatus();
+            showAlert('Gemini AI configured successfully! Try sending a message to test it.', 'AI Configured');
+          } else {
+            ai.setApiKey('');
+            updateAIStatus();
+            showAlert('Gemini AI disabled. Using fallback responses.', 'AI Disabled');
+          }
+        }
+      }
+    ]);
+
+    // Add test button functionality after modal is shown
+    setTimeout(() => {
+      const testBtn = $('testApiBtn');
+      if (testBtn) {
+        testBtn.onclick = async () => {
+          testBtn.textContent = 'Testing...';
+          testBtn.disabled = true;
+          
+          try {
+            const testResponse = await ai.callGeminiAPI('Hello, this is a test message.');
+            showAlert(`✅ API Test Successful!\n\nResponse: "${testResponse}"`, 'API Test Result');
+          } catch (error) {
+            showAlert(`❌ API Test Failed!\n\nError: ${error.message}\n\nPlease check your API key and try again.`, 'API Test Result');
+          }
+          
+          testBtn.textContent = 'Test API Connection';
+          testBtn.disabled = false;
+        };
+      }
+    }, 100);
+  });
+
   function toast(msg) {
     showAlert(msg);
   }
@@ -1709,6 +2312,109 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let store = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
   let contacts = JSON.parse(localStorage.getItem(CONTACT_KEY) || "[]");
+
+  // Function to populate sample data for last 15 days
+  function populateSampleData() {
+    const today = new Date();
+    const sampleData = {};
+    
+    for (let i = 14; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateKey = date.toISOString().slice(0, 10);
+      
+      // Create realistic sample data with some variation
+      const baseValues = {
+        mood: Math.floor(Math.random() * 5), // 0-4
+        anxiety: Math.floor(Math.random() * 10) + 1, // 1-10
+        stress: Math.floor(Math.random() * 10) + 1, // 1-10
+        focus: Math.floor(Math.random() * 10) + 1, // 1-10
+        prod: Math.floor(Math.random() * 10) + 1, // 1-10 (productivity)
+        energy: Math.floor(Math.random() * 10) + 1, // 1-10
+        sleep: Math.floor(Math.random() * 10) + 1, // 1-10
+      };
+      
+      // Add some realistic patterns (weekends might be different, etc.)
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) { // Weekend
+        baseValues.stress = Math.max(1, baseValues.stress - 2); // Lower stress on weekends
+        baseValues.mood = Math.min(4, baseValues.mood + 1); // Better mood on weekends
+        baseValues.sleep = Math.min(10, baseValues.sleep + 1); // Better sleep on weekends
+      }
+      
+      // Create sample notes based on the day
+      const sampleNotes = [
+        "Had a productive day at work. Feeling good about progress on my projects.",
+        "Felt a bit overwhelmed with deadlines today. Need to practice better time management.",
+        "Great day! Went for a walk during lunch break which really helped my mood.",
+        "Struggled with focus today. Too many distractions. Need to create a better workspace.",
+        "Excellent sleep last night. Woke up feeling refreshed and energized.",
+        "Feeling anxious about upcoming presentation. Practiced deep breathing exercises.",
+        "Wonderful weekend! Spent time with family and friends. Feeling grateful.",
+        "Challenging day but managed to stay positive. Meditation really helped.",
+        "Low energy today. Maybe need to adjust my diet and exercise routine.",
+        "Accomplished my goals for the day. Feeling satisfied and motivated.",
+        "Had some stress at work but handled it well. Proud of my progress.",
+        "Beautiful weather today! Spent time outdoors which boosted my mood significantly.",
+        "Feeling more balanced lately. The daily tracking is really helping me understand patterns.",
+        "Tough day emotionally but reached out to friends for support. Feeling better now.",
+        "Productive morning routine set a positive tone for the entire day."
+      ];
+      
+      sampleData[dateKey] = {
+        date: dateKey,
+        mood: baseValues.mood,
+        anxiety: baseValues.anxiety,
+        stress: baseValues.stress,
+        focus: baseValues.focus,
+        prod: baseValues.prod,
+        energy: baseValues.energy,
+        sleep: baseValues.sleep,
+        notes: sampleNotes[i % sampleNotes.length],
+        timestamp: date.toISOString()
+      };
+    }
+    
+    return sampleData;
+  }
+
+  // Check if store is empty and populate with sample data
+  if (Object.keys(store).length === 0) {
+    console.log('📊 Populating sample data for last 15 days...');
+    store = populateSampleData();
+    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    console.log('✅ Sample data populated!');
+  }
+
+  // Fix any existing data that might have wrong property names
+  function fixExistingData() {
+    let dataFixed = false;
+    Object.keys(store).forEach(dateKey => {
+      const entry = store[dateKey];
+      
+      // Fix productivity -> prod
+      if (entry.productivity !== undefined && entry.prod === undefined) {
+        entry.prod = entry.productivity;
+        delete entry.productivity;
+        dataFixed = true;
+      }
+      
+      // Ensure all numeric values are actually numbers
+      ['mood', 'anxiety', 'stress', 'focus', 'prod', 'energy', 'sleep'].forEach(prop => {
+        if (entry[prop] !== undefined) {
+          entry[prop] = Number(entry[prop]) || 0;
+        }
+      });
+    });
+    
+    if (dataFixed) {
+      localStorage.setItem(STORE_KEY, JSON.stringify(store));
+      console.log('🔧 Fixed existing data property names');
+    }
+  }
+
+  // Fix existing data on load
+  fixExistingData();
 
   const themeToggle = $("themeToggle");
   const themeIcon = $("themeIcon");
@@ -2229,6 +2935,10 @@ ${ai.analyzeEntry(e).join("\n")}`;
     const text = chatInput.value.trim();
     if (!text) return;
 
+    console.log('📨 sendChatMessage called with:', text);
+    console.log('🤖 AI state - isGeminiEnabled:', ai.isGeminiEnabled);
+    console.log('🔑 AI state - hasApiKey:', !!ai.apiKey);
+
     addMessage(text, true);
     chatInput.value = "";
 
@@ -2239,12 +2949,141 @@ ${ai.analyzeEntry(e).join("\n")}`;
     chatMessages.appendChild(typingMsg);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    setTimeout(() => {
-      chatMessages.removeChild(typingMsg);
-      const history = Object.values(store).sort((a, b) => a.date.localeCompare(b.date));
-      const response = ai.chatResponse(text, history);
+    // Direct Gemini API integration
+    async function getGeminiResponse(message) {
+      // Check if Gemini is enabled and API key exists
+      if (!ai.isGeminiEnabled || !ai.apiKey) {
+        console.log('⚠️ Gemini not enabled, using fallback');
+        return getFallbackResponse(message);
+      }
+
+      try {
+        console.log('🚀 Making direct Gemini API call...');
+        
+        const prompt = `You are a supportive mental health assistant. Respond to this message with empathy and helpful advice in 1-2 sentences: "${message}"`;
+        
+        const requestBody = {
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 500
+          },
+          systemInstruction: {
+            parts: [{
+              text: "You are a supportive mental health assistant. Provide direct, helpful responses without internal reasoning or thinking steps."
+            }]
+          }
+        };
+
+        console.log('📤 Sending request to:', ai.baseURL);
+        console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
+
+        const response = await fetch(ai.baseURL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': ai.apiKey
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        console.log('📥 Response status:', response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Gemini API Error:', errorText);
+          throw new Error(`Gemini API Error ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('📊 Gemini response data:', data);
+
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+          const responseText = data.candidates[0].content.parts[0].text.trim();
+          console.log('✅ Gemini response:', responseText);
+          
+          // Clean up markdown formatting
+          const cleanResponse = responseText.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1');
+          return cleanResponse;
+        } else {
+          console.error('❌ Invalid Gemini response structure');
+          throw new Error('Invalid response structure from Gemini');
+        }
+
+      } catch (error) {
+        console.error('💥 Gemini API call failed:', error);
+        return getFallbackResponse(message);
+      }
+    }
+
+    // Fallback response function
+    function getFallbackResponse(message) {
+      console.log('🔄 Using fallback response for:', message);
+      const lowerMsg = message.toLowerCase();
+      
+      // Crisis detection
+      if (lowerMsg.match(/\b(suicide|kill myself|end it all|want to die|hurt myself|self harm)\b/)) {
+        return "🚨 I'm very concerned about you. Please reach out for immediate help: 988 - Suicide & Crisis Lifeline (US), Crisis Text Line: Text HOME to 741741. You matter, and there are people who want to help.";
+      }
+
+      // Greetings
+      if (lowerMsg.match(/\b(hello|hi|hey|good morning|good evening|greetings)\b/)) {
+        const greetings = [
+          "Hello! I'm here to support your mental wellness journey. How are you feeling today?",
+          "Hi there! I'm your AI mental health companion. What's on your mind?",
+          "Welcome! I'm here to listen and help. How can I support you today?"
+        ];
+        return greetings[Math.floor(Math.random() * greetings.length)];
+      }
+      
+      // Anxiety responses
+      if (lowerMsg.match(/\b(anxious|anxiety|panic|worried|nervous|fear|scared)\b/)) {
+        const responses = [
+          "I understand anxiety can be overwhelming. Try the 4-7-8 breathing technique: breathe in for 4 seconds, hold for 7, exhale for 8.",
+          "Anxiety is tough, but you're not alone. Try the 5-4-3-2-1 grounding technique: Name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, and 1 you taste.",
+          "When anxiety strikes, remember: this feeling is temporary. Try progressive muscle relaxation or a short walk."
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Stress responses
+      if (lowerMsg.match(/\b(stress|stressed|overwhelm|overwhelmed|pressure|burnout)\b/)) {
+        const responses = [
+          "Stress management is key. Try the Pomodoro Technique: Work for 25 minutes, then take a 5-minute break.",
+          "When overwhelmed, break tasks into tiny steps. Instead of 'finish project', try 'write first paragraph'.",
+          "Remember to be kind to yourself. You're doing your best, and that's enough."
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Default supportive responses
+      const supportResponses = [
+        "Thank you for sharing that with me. What would be most helpful for you right now?",
+        "I'm here to listen and support you. How are you feeling about this situation?",
+        "Remember, seeking help is a sign of strength, not weakness.",
+        "You're taking important steps by tracking your mental health. That's commendable!"
+      ];
+      return supportResponses[Math.floor(Math.random() * supportResponses.length)];
+    }
+
+    // Get response and handle it
+    getGeminiResponse(text).then(response => {
+      console.log('✅ Final response:', response);
+      if (chatMessages.contains(typingMsg)) {
+        chatMessages.removeChild(typingMsg);
+      }
       addMessage(response, false);
-    }, 800);
+    }).catch(error => {
+      console.error('❌ Error in getGeminiResponse:', error);
+      if (chatMessages.contains(typingMsg)) {
+        chatMessages.removeChild(typingMsg);
+      }
+      addMessage("I'm having trouble connecting right now. Please try again in a moment.", false);
+    });
   }
 
   chatSend.onclick = sendChatMessage;
